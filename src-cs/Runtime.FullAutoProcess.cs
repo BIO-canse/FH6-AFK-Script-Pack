@@ -79,7 +79,7 @@ namespace FH6SkillPointOcr
             long remainingMs = 0;
             if (loops > 0)
             {
-                long totalMs = (long)loops * FH6AutomationConstants.SkillPoints.MinuteLoopEstimatedLoopMs;
+                long totalMs = (long)loops * config.MinuteLoopEstimatedLoopMs;
                 long elapsedMs = Math.Max(0, (long)(DateTime.UtcNow - estimateAnchorUtc).TotalMilliseconds);
                 remainingMs = Math.Max(0, totalMs - elapsedMs);
             }
@@ -258,8 +258,8 @@ namespace FH6SkillPointOcr
         {
             if (task != AutomationTask.FullAuto && task != AutomationTask.BlueprintCycleTest) return;
             SetStage("阶段间隔");
-            SetStatus("full auto transition", reason + "，等待 1 秒");
-            FullAutoSleep(FH6AutomationConstants.Timing.FullAutoStageGapMs);
+            SetStatus("full auto transition", reason + "，等待 " + FormatDurationCompact(TimeSpan.FromMilliseconds(config.FullAutoStageGapMs)));
+            FullAutoSleep(config.FullAutoStageGapMs);
         }
 
         private void RequestChildSafeStop(string safeStopFile, string reason)

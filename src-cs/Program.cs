@@ -33,22 +33,30 @@ namespace FH6SkillPointOcr
                 options = CliOptions.Parse(args);
                 if (options.ShowHelp)
                 {
-                    Console.WriteLine("FH6SkillPointOcr.exe [--config path] [--dry-run] [--no-overlay] [--mode normal|debug|reset] [--task skill|delete|fullauto|blueprint-test] [--quick-verify|--normal-full-auto] [--handoff] [--skill-points n] [--credits n] [--skill-points-state-file path] [--skill-points-log-file path] [--safe-stop-file path]");
+                    Console.WriteLine("FH6SkillPointOcr.exe [--config path] [--dry-run] [--no-overlay] [--mode normal|debug|reset|timing] [--task skill|delete|fullauto|blueprint-test] [--quick-verify|--normal-full-auto] [--handoff] [--skill-points n] [--credits n] [--skill-points-state-file path] [--skill-points-log-file path] [--safe-stop-file path]");
                     return 0;
                 }
 
                 config = Config.Load(options.ConfigPath);
                 EmergencyStopWatcherLauncher.Start(config.BaseDir);
+
+                RunMode mode = ChooseRunMode(options.Mode);
+                while (mode == RunMode.ResetSettings || mode == RunMode.AdjustTimings)
+                {
+                    if (mode == RunMode.ResetSettings)
+                    {
+                        UserSettings.Reset(config);
+                    }
+                    else
+                    {
+                        config = TimingAdjustmentMenu.Run(config);
+                    }
+                    mode = ChooseRunMode(null);
+                }
+
                 if (options.NoOverlay)
                 {
                     config.OverlayEnabled = false;
-                }
-
-                RunMode mode = ChooseRunMode(options.Mode);
-                while (mode == RunMode.ResetSettings)
-                {
-                    UserSettings.Reset(config);
-                    mode = ChooseRunMode(null);
                 }
 
                 OcrReader.Preflight(config);
@@ -192,6 +200,7 @@ namespace FH6SkillPointOcr
             if (mode == "normal") return RunMode.Normal;
             if (mode == "debug") return RunMode.Debug;
             if (mode == "reset") return RunMode.ResetSettings;
+            if (mode == "timing" || mode == "timings" || mode == "wait" || mode == "waits") return RunMode.AdjustTimings;
 
             while (true)
             {
@@ -199,12 +208,14 @@ namespace FH6SkillPointOcr
                 Console.WriteLine("1. 正常模式：自动连续运行");
                 Console.WriteLine("2. 调试模式：每一步按 · 键继续");
                 Console.WriteLine("3. 重设设置：重新输入行列、框选完整可见车辆格子区域");
-                Console.Write("输入 1、2 或 3 后回车，直接回车默认正常模式：");
+                Console.WriteLine("4. 调整等待时间：默认保守，性能强的电脑可以适当缩短");
+                Console.Write("输入 1、2、3 或 4 后回车，直接回车默认正常模式：");
                 string choice = (Console.ReadLine() ?? "").Trim();
                 if (choice.Length == 0 || choice == "1") return RunMode.Normal;
                 if (choice == "2") return RunMode.Debug;
                 if (choice == "3") return RunMode.ResetSettings;
-                Console.WriteLine("输入无效，请输入 1、2 或 3。");
+                if (choice == "4") return RunMode.AdjustTimings;
+                Console.WriteLine("输入无效，请输入 1、2、3 或 4。");
             }
         }
 
@@ -212,7 +223,8 @@ namespace FH6SkillPointOcr
         {
             Normal,
             Debug,
-            ResetSettings
+            ResetSettings,
+            AdjustTimings
         }
 
         private static void EnableDpiAwareness()

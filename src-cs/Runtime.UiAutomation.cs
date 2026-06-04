@@ -66,8 +66,8 @@ namespace FH6SkillPointOcr
             DebugGate("ui click cache " + label, "复用 UI 坐标 " + label + " (" + point.X + "," + point.Y + ")");
             SetOcrSummary("UI坐标缓存: " + label + " -> " + point.X + "," + point.Y + "，启动后台 OCR 保险，不等待识别结果");
             StartUiCacheOcrGuard(label, text);
-            SetOcrSummary("UI坐标缓存: " + label + " 后台 OCR 保险已启动，等待 0.5 秒后点击");
-            FullAutoSleep(FH6AutomationConstants.Timing.HalfSecondMs);
+            SetOcrSummary("UI坐标缓存: " + label + " 后台 OCR 保险已启动，等待 " + config.UiCacheClickWaitMs + "ms 后点击");
+            FullAutoSleep(config.UiCacheClickWaitMs);
             input.MoveTo(point.X, point.Y);
             input.Click();
             if (moveToIdleAfterClick) MoveMouseToScreenBottomRight("idle after clicking cached " + label);
@@ -186,8 +186,8 @@ namespace FH6SkillPointOcr
 
         private void WaitBeforeUiOcrCapture(string reason)
         {
-            SetOcrSummary("UI OCR 等待画面稳定 1 秒: " + reason);
-            SleepWithFullAutoHotkey(FH6AutomationConstants.Timing.UiOcrStableWaitMs);
+            SetOcrSummary("UI OCR 等待画面稳定 " + config.UiOcrStableWaitMs + "ms: " + reason);
+            SleepWithFullAutoHotkey(config.UiOcrStableWaitMs);
         }
 
         private static string SanitizeDebugLabel(string label)

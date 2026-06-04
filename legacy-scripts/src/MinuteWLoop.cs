@@ -24,6 +24,7 @@ internal static class MinuteWLoop
     private static int EventIndex;
     private static int MinuteLoopCount;
     private static int SkillPointsTarget = FH6AutomationConstants.SkillPoints.Max;
+    private static int EnterToXWaitMs = FH6AutomationConstants.SkillPoints.MinuteLoopEnterToXWaitMs;
     private static bool TrackSkillPoints;
     private static bool HandoffStart;
 
@@ -49,6 +50,7 @@ internal static class MinuteWLoop
         SkillPointsStateFile = ParseArg(args, "--skill-points-state-file");
         SkillPointsLogFile = ParseArg(args, "--skill-points-log-file");
         SkillPointsTarget = Math.Max(0, Math.Min(FH6AutomationConstants.SkillPoints.Max, ParseIntArg(args, "--skill-points-target", FH6AutomationConstants.SkillPoints.Max)));
+        EnterToXWaitMs = Math.Max(5000, Math.Min(120000, ParseIntArg(args, "--enter-to-x-wait-ms", FH6AutomationConstants.SkillPoints.MinuteLoopEnterToXWaitMs)));
         HandoffStart = HasFlag(args, "--handoff");
         TrackSkillPoints = !string.IsNullOrWhiteSpace(SkillPointsStateFile);
         if (TrackSkillPoints)
@@ -61,7 +63,7 @@ internal static class MinuteWLoop
         Console.Title = "MinuteWLoop - Space+C 退出";
         Console.WriteLine("程序已启动。");
         Console.WriteLine(HandoffStart ? "衔接启动：跳过开局 10 秒等待。" : "启动后先等待 10 秒。");
-        Console.WriteLine("主循环：确保 W 松开，按 Enter，1 秒后按住 W，Enter 后等待 40 秒，松开 W，按 X，等待 1 秒，按 Enter，等待 10 秒。");
+        Console.WriteLine("主循环：确保 W 松开，按 Enter，1 秒后按住 W，Enter 后等待 {0:0.###} 秒，松开 W，按 X，等待 1 秒，按 Enter，等待 10 秒。", EnterToXWaitMs / 1000.0);
         Console.WriteLine("W 不会在 Enter 前按下，避免菜单选项被 W 移动。");
         if (TrackSkillPoints)
         {
@@ -109,7 +111,7 @@ internal static class MinuteWLoop
                 Console.WriteLine("{0:HH:mm:ss} 已按 Enter", DateTime.Now);
                 ScheduleWPressAfterEnter();
 
-                if (!WaitOrImmediateExit(TimeSpan.FromMilliseconds(FH6AutomationConstants.SkillPoints.MinuteLoopEnterToXWaitMs)))
+                if (!WaitOrImmediateExit(TimeSpan.FromMilliseconds(EnterToXWaitMs)))
                 {
                     break;
                 }

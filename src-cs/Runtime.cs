@@ -143,7 +143,7 @@ namespace FH6SkillPointOcr
         {
             if (handoffStart)
             {
-                Console.WriteLine("[STARTUP] 衔接启动：跳过启动确认和 10 秒等待。");
+                Console.WriteLine("[STARTUP] 衔接启动：跳过启动确认和启动等待。");
                 SetStatus("startup wait skipped", "衔接启动子程序跳过启动确认");
                 EnableWindowBindingForAutomation("handoff startup");
                 return;
@@ -158,11 +158,17 @@ namespace FH6SkillPointOcr
                 return;
             }
 
-            Console.Write("[STARTUP] 准备工作已完成。请切到目标窗口，按 Enter 后等待 10 秒开始自动流程：");
+            Console.Write("[STARTUP] 准备工作已完成。请切到目标窗口，按 Enter 后等待 " + FormatMillisecondsForPrompt(config.StartupDelayMs) + " 开始自动流程：");
             Console.ReadLine();
-            DebugGate("startup wait", "等待 10 秒后进入主循环");
+            DebugGate("startup wait", "等待 " + FormatMillisecondsForPrompt(config.StartupDelayMs) + " 后进入主循环");
             input.SleepMs(config.StartupDelayMs);
             EnableWindowBindingForAutomation("normal startup after delay");
+        }
+
+        private static string FormatMillisecondsForPrompt(int ms)
+        {
+            if (ms % 1000 == 0) return (ms / 1000).ToString(CultureInfo.InvariantCulture) + " 秒";
+            return ms.ToString(CultureInfo.InvariantCulture) + "ms";
         }
 
         private void MainLoopOnce()

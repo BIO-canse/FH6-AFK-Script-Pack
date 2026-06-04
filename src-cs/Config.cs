@@ -36,6 +36,10 @@ namespace FH6SkillPointOcr
         public int TapMs;
         public int RepeatIntervalMs;
         public int AfterClickMs;
+        public int FullAutoStageGapMs;
+        public int UiOcrStableWaitMs;
+        public int UiCacheClickWaitMs;
+        public int MinuteLoopEnterToXWaitMs;
         public double OcrScale;
         public double OcrMinConfidence;
         public int OcrPsm;
@@ -94,6 +98,10 @@ namespace FH6SkillPointOcr
             cfg.TapMs = GetInt(json, "tap_ms", FH6AutomationConstants.Timing.TapMs);
             cfg.RepeatIntervalMs = GetInt(json, "repeat_interval_ms", FH6AutomationConstants.Timing.RepeatIntervalMs);
             cfg.AfterClickMs = GetInt(json, "after_click_ms", FH6AutomationConstants.Timing.AfterClickMs);
+            cfg.FullAutoStageGapMs = Clamp(GetInt(json, "full_auto_stage_gap_ms", FH6AutomationConstants.Timing.FullAutoStageGapMs), 0, 10000);
+            cfg.UiOcrStableWaitMs = Clamp(GetInt(json, "ui_ocr_stable_wait_ms", FH6AutomationConstants.Timing.UiOcrStableWaitMs), 0, 10000);
+            cfg.UiCacheClickWaitMs = Clamp(GetInt(json, "ui_cache_click_wait_ms", FH6AutomationConstants.Timing.HalfSecondMs), 0, 10000);
+            cfg.MinuteLoopEnterToXWaitMs = Clamp(GetInt(json, "minute_loop_enter_to_x_wait_ms", FH6AutomationConstants.SkillPoints.MinuteLoopEnterToXWaitMs), 5000, 120000);
             cfg.OcrScale = GetDouble(json, "ocr_scale", FH6AutomationConstants.Ocr.Scale);
             cfg.OcrMinConfidence = GetDouble(json, "ocr_min_confidence", FH6AutomationConstants.Ocr.MinConfidence);
             cfg.OcrPsm = GetInt(json, "ocr_psm", FH6AutomationConstants.Ocr.Psm);
@@ -143,6 +151,11 @@ namespace FH6SkillPointOcr
             return Path.GetFullPath(Path.Combine(BaseDir, raw));
         }
 
+        public int MinuteLoopEstimatedLoopMs
+        {
+            get { return MinuteLoopEnterToXWaitMs + FH6AutomationConstants.SkillPoints.MinuteLoopEstimatedFixedMs; }
+        }
+
         private static string ResolveConfigPath(string path)
         {
             if (Path.IsPathRooted(path)) return Path.GetFullPath(path);
@@ -188,6 +201,13 @@ namespace FH6SkillPointOcr
         {
             object value;
             return json.TryGetValue(key, out value) && value != null ? Convert.ToInt32(value, CultureInfo.InvariantCulture) : fallback;
+        }
+
+        private static int Clamp(int value, int min, int max)
+        {
+            if (value < min) return min;
+            if (value > max) return max;
+            return value;
         }
 
         private static double GetDouble(Dictionary<string, object> json, string key, double fallback)

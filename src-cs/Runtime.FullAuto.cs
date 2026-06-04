@@ -105,7 +105,11 @@ namespace FH6SkillPointOcr
             string safeStopFile = SafeStopPath(FH6AutomationConstants.Files.MinuteSafeStop);
             DeleteFileIfExists(safeStopFile);
             PersistFullAutoSkillPoints("before_minute_loop");
-            string arguments = "--handoff --safe-stop-file " + QuoteArg(safeStopFile) + " --skill-points-target " + target.ToString(CultureInfo.InvariantCulture) + " --skill-points-state-file " + QuoteArg(SkillPointsStatePath()) + " --skill-points-log-file " + QuoteArg(skillPointsLogFile);
+            string arguments = "--handoff --safe-stop-file " + QuoteArg(safeStopFile)
+                + " --skill-points-target " + target.ToString(CultureInfo.InvariantCulture)
+                + " --enter-to-x-wait-ms " + config.MinuteLoopEnterToXWaitMs.ToString(CultureInfo.InvariantCulture)
+                + " --skill-points-state-file " + QuoteArg(SkillPointsStatePath())
+                + " --skill-points-log-file " + QuoteArg(skillPointsLogFile);
             RunMinuteWLoopProcess(safeStopFile, arguments, true);
         }
 
