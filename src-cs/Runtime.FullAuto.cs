@@ -92,7 +92,7 @@ namespace FH6SkillPointOcr
             RunChildProcess(ResolveBinPath(FH6AutomationConstants.Files.DeleteVehicleExe), args, "delete");
             ReloadVehicleListStateFromHandoff("delete child completed");
             SetStage("自动删车交接");
-            SetStatus("delete handoff to garage standard", "删车结束停在选择车辆页面，按 Esc 回车库标准位；找 900 车流程不再额外 Esc");
+            SetStatus("delete handoff to garage standard", "删车结束停在选择车辆页面，按 Esc 回车库标准位；找 " + config.DrivePerformanceScore + " 车流程不再额外 Esc");
             input.Tap("ESC");
             FullAutoSleep(FH6AutomationConstants.Timing.HalfSecondMs);
         }
@@ -128,7 +128,7 @@ namespace FH6SkillPointOcr
 
         private void FindDriveCarAndEnterBlueprint()
         {
-            SetStage("找 900 分开蓝图车辆");
+            SetStage("找 " + config.DrivePerformanceScore + " 分开蓝图车辆");
             SetStatus("find drive vehicle startup", "从车库标准位开始：Enter -> 0.5 秒 -> Backspace -> 0.5 秒 -> 滚动+缓存/OCR点斯巴鲁");
             if (!grid.Locked) BuildGrid();
             ReopenSubaruListFromVehicleListForDriveSearch();
@@ -383,7 +383,7 @@ namespace FH6SkillPointOcr
 
         private CellKey FindDriveVehicleCell()
         {
-            SetStatus("find drive vehicle", UseTableOnlyVehicleSearch() ? "按定表虚拟列表选择列表最前的 900 分状态 2 指定车型；没有候选则报错，不 OCR" : "按虚拟表规划下一步：选择、滚动、OCR 或默认第一格");
+            SetStatus("find drive vehicle", UseTableOnlyVehicleSearch() ? "按定表虚拟列表选择列表最前的 " + config.DrivePerformanceScore + " 分状态 2 指定车型；没有候选则报错，不 OCR" : "按虚拟表规划下一步：选择、滚动、OCR 或默认第一格");
             OcrSnapshot last = null;
             for (int i = 0; i < config.MaxFindNewScrolls; i++)
             {

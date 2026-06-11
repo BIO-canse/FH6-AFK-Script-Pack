@@ -52,6 +52,13 @@ namespace FH6SkillPointOcr
             form.SafeUpdate(details, cells, ocrFields, points);
         }
 
+        public void FollowTargetScreen(Rectangle targetBounds)
+        {
+            if (!enabled || form == null || form.IsDisposed) return;
+            if (targetBounds.Width <= 0 || targetBounds.Height <= 0) return;
+            form.SafeSetOverlayBounds(targetBounds);
+        }
+
         public void HideForCapture(int ms)
         {
             if (enabled && form != null && !form.IsDisposed) form.SafeHide();
@@ -163,6 +170,22 @@ namespace FH6SkillPointOcr
             Invalidate();
         }
 
+        public void SafeSetOverlayBounds(Rectangle newBounds)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action<Rectangle>(SafeSetOverlayBounds), newBounds);
+                return;
+            }
+            if (newBounds.Width <= 0 || newBounds.Height <= 0) return;
+            if (Bounds != newBounds)
+            {
+                Bounds = newBounds;
+                MakeClickThrough();
+            }
+            Invalidate();
+        }
+
         public void SafeHide()
         {
             if (InvokeRequired)
@@ -198,10 +221,9 @@ namespace FH6SkillPointOcr
         {
             base.OnPaint(e);
             Graphics g = e.Graphics;
-            Rectangle virtualScreen = SystemInformation.VirtualScreen;
             foreach (CellView cell in cells)
             {
-                RectangleF rect = new RectangleF(cell.Rect.Left - virtualScreen.Left, cell.Rect.Top - virtualScreen.Top, cell.Rect.Width, cell.Rect.Height);
+                RectangleF rect = AbsoluteToClient(cell.Rect);
                 Color border = Color.FromArgb(0, 115, 255);
                 using (Pen pen = new Pen(border, 1))
                 {
@@ -245,7 +267,7 @@ namespace FH6SkillPointOcr
 
             foreach (OcrFieldView field in ocrFields)
             {
-                RectangleF rect = new RectangleF(field.Rect.Left - virtualScreen.Left, field.Rect.Top - virtualScreen.Top, field.Rect.Width, field.Rect.Height);
+                RectangleF rect = AbsoluteToClient(field.Rect);
                 Color fieldColor = OcrFieldColor(field.Label);
                 using (Pen pen = new Pen(fieldColor, 1.5f))
                 using (Brush labelBack = new SolidBrush(Color.FromArgb(205, fieldColor.R / 3, fieldColor.G / 3, fieldColor.B / 3)))
@@ -266,8 +288,9 @@ namespace FH6SkillPointOcr
             foreach (OverlayPointView point in points)
             {
                 float radius = Math.Max(3, point.Radius);
-                float x = point.Point.X - virtualScreen.Left;
-                float y = point.Point.Y - virtualScreen.Top;
+                Point localPoint = PointToClient(point.Point);
+                float x = localPoint.X;
+                float y = localPoint.Y;
                 using (Brush brush = new SolidBrush(point.Color))
                 using (Pen pen = new Pen(Color.White, 2))
                 using (Font font = new Font("Consolas", 11, FontStyle.Bold))
@@ -321,6 +344,13 @@ namespace FH6SkillPointOcr
             if (label == "斯巴鲁-选中") return Color.FromArgb(255, 60, 220);
             if (label == "斯巴鲁") return Color.FromArgb(210, 120, 255);
             return Color.FromArgb(0, 220, 255);
+        }
+
+        private RectangleF AbsoluteToClient(RectangleF absolute)
+        {
+            Point topLeft = PointToClient(new Point((int)Math.Round(absolute.Left), (int)Math.Round(absolute.Top)));
+            Point bottomRight = PointToClient(new Point((int)Math.Round(absolute.Right), (int)Math.Round(absolute.Bottom)));
+            return RectangleF.FromLTRB(topLeft.X, topLeft.Y, bottomRight.X, bottomRight.Y);
         }
 
         private static string FormatElapsed(double seconds)

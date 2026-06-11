@@ -40,6 +40,11 @@ namespace FH6SkillPointOcr
         public int UiOcrStableWaitMs;
         public int UiCacheClickWaitMs;
         public int MinuteLoopEnterToXWaitMs;
+        public bool UseWindowMessageMouseInput;
+        public bool BlockPhysicalMouseOnBoundWindow;
+        public List<string> TargetWindowProcessKeywords;
+        public List<string> TargetWindowTitleKeywords;
+        public string TargetProcessPriority;
         public double OcrScale;
         public double OcrMinConfidence;
         public int OcrPsm;
@@ -49,6 +54,7 @@ namespace FH6SkillPointOcr
         public string NewBadgeText;
         public string DeleteMarkerText;
         public string DriveMarkerText;
+        public int DrivePerformanceScore;
         public string CreativeCenterText;
         public string LatestHotText;
         public string MyFavoritesText;
@@ -102,6 +108,23 @@ namespace FH6SkillPointOcr
             cfg.UiOcrStableWaitMs = Clamp(GetInt(json, "ui_ocr_stable_wait_ms", FH6AutomationConstants.Timing.UiOcrStableWaitMs), 0, 10000);
             cfg.UiCacheClickWaitMs = Clamp(GetInt(json, "ui_cache_click_wait_ms", FH6AutomationConstants.Timing.HalfSecondMs), 0, 10000);
             cfg.MinuteLoopEnterToXWaitMs = Clamp(GetInt(json, "minute_loop_enter_to_x_wait_ms", FH6AutomationConstants.SkillPoints.MinuteLoopEnterToXWaitMs), 5000, 120000);
+            cfg.UseWindowMessageMouseInput = GetBool(json, "use_window_message_mouse_input", true);
+            cfg.BlockPhysicalMouseOnBoundWindow = GetBool(json, "block_physical_mouse_on_bound_window", true);
+            cfg.TargetWindowProcessKeywords = GetStringList(json, "target_window_process_keywords");
+            if (cfg.TargetWindowProcessKeywords.Count == 0)
+            {
+                cfg.TargetWindowProcessKeywords.Add("ForzaHorizon");
+                cfg.TargetWindowProcessKeywords.Add("Forza");
+                cfg.TargetWindowProcessKeywords.Add("FH6");
+                cfg.TargetWindowProcessKeywords.Add("FH5");
+            }
+            cfg.TargetWindowTitleKeywords = GetStringList(json, "target_window_title_keywords");
+            if (cfg.TargetWindowTitleKeywords.Count == 0)
+            {
+                cfg.TargetWindowTitleKeywords.Add("Forza Horizon");
+                cfg.TargetWindowTitleKeywords.Add("地平线");
+            }
+            cfg.TargetProcessPriority = GetString(json, "target_process_priority", "RealTime");
             cfg.OcrScale = GetDouble(json, "ocr_scale", FH6AutomationConstants.Ocr.Scale);
             cfg.OcrMinConfidence = GetDouble(json, "ocr_min_confidence", FH6AutomationConstants.Ocr.MinConfidence);
             cfg.OcrPsm = GetInt(json, "ocr_psm", FH6AutomationConstants.Ocr.Psm);
@@ -111,6 +134,7 @@ namespace FH6SkillPointOcr
             cfg.NewBadgeText = GetString(json, "new_badge_text", FH6AutomationConstants.Text.NewBadge);
             cfg.DeleteMarkerText = GetString(json, "delete_marker_text", FH6AutomationConstants.Text.DeleteMarker);
             cfg.DriveMarkerText = GetString(json, "drive_marker_text", FH6AutomationConstants.Text.DriveMarker);
+            cfg.DrivePerformanceScore = Clamp(GetInt(json, "drive_performance_score", ParseIntText(cfg.DriveMarkerText, FH6AutomationConstants.Flow.DrivePerformanceScore)), 100, 999);
             cfg.CreativeCenterText = GetString(json, "creative_center_text", FH6AutomationConstants.Text.CreativeCenter);
             cfg.LatestHotText = GetString(json, "latest_hot_text", FH6AutomationConstants.Text.LatestHot);
             cfg.MyFavoritesText = GetString(json, "my_favorites_text", FH6AutomationConstants.Text.MyFavorites);
@@ -208,6 +232,12 @@ namespace FH6SkillPointOcr
             if (value < min) return min;
             if (value > max) return max;
             return value;
+        }
+
+        private static int ParseIntText(string text, int fallback)
+        {
+            int value;
+            return int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value) ? value : fallback;
         }
 
         private static double GetDouble(Dictionary<string, object> json, string key, double fallback)

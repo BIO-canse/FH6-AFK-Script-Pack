@@ -31,12 +31,19 @@ namespace FH6SkillPointOcr
 
                 Config config = Config.Load(configPath);
                 EmergencyStopWatcherLauncher.Start(config.BaseDir);
-                InputController input = new InputController(config.TapMs, config.RepeatIntervalMs, dryRun, null);
-                ScreenCapture capture = new ScreenCapture(config.MonitorIndex);
+                InputController input = new InputController(
+                    config.TapMs,
+                    config.RepeatIntervalMs,
+                    dryRun,
+                    null,
+                    config.UseWindowMessageMouseInput,
+                    config.BlockPhysicalMouseOnBoundWindow);
+                ScreenCapture capture = new ScreenCapture(config.MonitorIndex, config.TargetWindowProcessKeywords, config.TargetWindowTitleKeywords);
                 string debugDir = Path.Combine(config.ResolvePath(config.DebugDir), "buy-prelude-step");
                 ResetDebugDir(debugDir);
                 OverlayRenderer overlay = new OverlayRenderer(config.OverlayEnabled);
                 overlay.Start();
+                overlay.FollowTargetScreen(capture.GetBounds());
                 using (OcrReader ocr = new OcrReader(config, debugDir))
                 {
                     Console.Title = "FH6BuyPreludeStepDebug - ` 下一步 / Space+C 退出";
@@ -52,7 +59,7 @@ namespace FH6SkillPointOcr
 
                     Step(input, "鼠标移动到屏幕中心，准备让滚轮落在制造商列表上", delegate
                     {
-                        MoveMouseToScreenCenter(input, capture, "manufacturer list scroll focus");
+                        MoveMouseToScreenCenter(input, capture, overlay, "manufacturer list scroll focus");
                     });
 
                     Step(input, "滚轮向下 " + config.ManufacturerScrollTicks + " 格，然后等待 " + config.SingleScrollDelayMs + "ms", delegate
@@ -63,7 +70,7 @@ namespace FH6SkillPointOcr
 
                     Step(input, "鼠标移动到屏幕右下角", delegate
                     {
-                        MoveMouseToScreenBottomRight(input, capture, "idle after Subaru list scroll");
+                        MoveMouseToScreenBottomRight(input, capture, overlay, "idle after Subaru list scroll");
                     });
 
                     Step(input, "整屏 OCR 找斯巴鲁，移动并点击；然后等待 0.5 秒", delegate
@@ -80,6 +87,7 @@ namespace FH6SkillPointOcr
                     Console.WriteLine("完成：已执行到 Down，不会继续 Enter。");
                 }
                 overlay.Stop();
+                input.Dispose();
 
                 return 0;
             }
@@ -139,6 +147,7 @@ namespace FH6SkillPointOcr
             File.AppendAllText(Path.Combine(debugDir, "ocr-candidates.log"), "[CHOSEN] center=(" + point.X + "," + point.Y + "), text=" + chosen.Text + "\r\n");
             Console.WriteLine("[OCR] 选择最左上的斯巴鲁 center=(" + point.X + "," + point.Y + ")");
             ShowSubaruOverlay(overlay, matches, chosen, point);
+            BindInputToForegroundWindow(input, capture, overlay, "buy prelude click Subaru");
             input.MoveTo(point.X, point.Y);
             input.Click();
         }
@@ -226,8 +235,9 @@ namespace FH6SkillPointOcr
             return OcrMatchFilter.ChooseUiTextMatch(matches, text);
         }
 
-        private static void MoveMouseToScreenBottomRight(InputController input, ScreenCapture capture, string reason)
+        private static void MoveMouseToScreenBottomRight(InputController input, ScreenCapture capture, OverlayRenderer overlay, string reason)
         {
+            BindInputToForegroundWindow(input, capture, overlay, reason);
             Rectangle bounds = capture.GetBounds();
             int x = Math.Max(bounds.Left, bounds.Right - 2);
             int y = Math.Max(bounds.Top, bounds.Bottom - 2);
@@ -235,8 +245,9 @@ namespace FH6SkillPointOcr
             input.MoveTo(x, y);
         }
 
-        private static void MoveMouseToScreenCenter(InputController input, ScreenCapture capture, string reason)
+        private static void MoveMouseToScreenCenter(InputController input, ScreenCapture capture, OverlayRenderer overlay, string reason)
         {
+            BindInputToForegroundWindow(input, capture, overlay, reason);
             Rectangle bounds = capture.GetBounds();
             int x = bounds.Left + bounds.Width / 2;
             int y = bounds.Top + bounds.Height / 2;
@@ -244,12 +255,35 @@ namespace FH6SkillPointOcr
             input.MoveTo(x, y);
         }
 
+        private static void BindInputToForegroundWindow(InputController input, ScreenCapture capture, OverlayRenderer overlay, string reason)
+        {
+            capture.EnableWindowBinding(reason);
+            IntPtr hwnd;
+            Rectangle bounds;
+            if (capture.TryGetBoundWindowTarget(out hwnd, out bounds))
+            {
+                overlay.FollowTargetScreen(bounds);
+                input.BindTargetWindow(hwnd, bounds, capture.BoundMessageClientSize, reason);
+            }
+        }
+
         private static void EnableDpiAwareness()
         {
+            try
+            {
+                if (SetProcessDpiAwarenessContext(new IntPtr(-4))) return;
+            }
+            catch
+            {
+            }
+
             try { SetProcessDPIAware(); } catch { }
         }
 
         [DllImport("user32.dll")]
         private static extern bool SetProcessDPIAware();
+
+        [DllImport("user32.dll")]
+        private static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
     }
 }

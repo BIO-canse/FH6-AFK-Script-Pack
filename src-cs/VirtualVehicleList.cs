@@ -21,6 +21,7 @@ namespace FH6SkillPointOcr
     internal sealed partial class VirtualVehicleList
     {
         private readonly int rows;
+        private readonly int drivePerformanceScore;
         private readonly string editLogPath;
         private readonly string snapshotPath;
         private readonly Dictionary<CellKey, VirtualVehicleCell> cells = new Dictionary<CellKey, VirtualVehicleCell>();
@@ -35,8 +36,14 @@ namespace FH6SkillPointOcr
         public int LastSuggestedSkip { get; private set; }
 
         public VirtualVehicleList(int rows, string editLogPath, string snapshotPath, VirtualListLoadMode loadMode)
+            : this(rows, editLogPath, snapshotPath, loadMode, FH6AutomationConstants.Flow.DrivePerformanceScore)
+        {
+        }
+
+        public VirtualVehicleList(int rows, string editLogPath, string snapshotPath, VirtualListLoadMode loadMode, int drivePerformanceScore)
         {
             this.rows = rows;
+            this.drivePerformanceScore = drivePerformanceScore;
             this.editLogPath = editLogPath;
             this.snapshotPath = snapshotPath;
             EnsureParentDirectory(snapshotPath);
@@ -1170,7 +1177,7 @@ namespace FH6SkillPointOcr
             if (cell == null) return false;
             if (!cell.IsTarget) return false;
             return StateCode(cell) == FH6AutomationConstants.VehicleState.Target &&
-                cell.PerformanceScore == 900;
+                cell.PerformanceScore == drivePerformanceScore;
         }
 
         private bool ShouldIgnoreKnownColumnCell(int row, int col)
@@ -1535,7 +1542,7 @@ namespace FH6SkillPointOcr
 
         private static string DefaultPerformanceClassForScore(int score)
         {
-            if (score == 900) return "S2";
+            if (score >= 801) return "S2";
             if (score == 600) return "B";
             return "";
         }

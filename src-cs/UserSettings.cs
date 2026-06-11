@@ -131,15 +131,26 @@ namespace FH6SkillPointOcr
 
             Console.WriteLine("接下来请用鼠标框选“所有完整可见车辆格子的整体区域”。");
             Console.WriteLine("例如 3 行 4 列，就从左上完整格子的左上角拖到右下完整格子的右下角。程序会按你输入的行列数自动切分。");
+            WindowBinding targetBinding;
+            if (WindowLocator.TryBindTargetWindow(Process.GetCurrentProcess().Id, config.TargetWindowProcessKeywords, config.TargetWindowTitleKeywords, out targetBinding))
+            {
+                Console.WriteLine("[SETTINGS] 框选将绑定 FH6 目标窗口：" + targetBinding.Summary());
+                Console.WriteLine("[SETTINGS] 框选层只显示在该窗口所在显示器，避免主副屏缩放比例不同导致坐标偏移。");
+            }
+            else
+            {
+                targetBinding = null;
+                Console.WriteLine("[SETTINGS] 未能提前找到 FH6 目标窗口，框选层将回退到配置显示器。");
+            }
             Console.Write("按 Enter 后隐藏窗口并开始框选：");
             Console.ReadLine();
-            RectangleF gridRect = MouseCellCalibrator.Capture(config.MonitorIndex);
+            RectangleF gridRect = MouseCellCalibrator.Capture(config, targetBinding);
             while (gridRect.Width <= 0 || gridRect.Height <= 0)
             {
                 Console.WriteLine("框选无效，请重新框选。");
                 Console.Write("按 Enter 后隐藏窗口并重新框选：");
                 Console.ReadLine();
-                gridRect = MouseCellCalibrator.Capture(config.MonitorIndex);
+                gridRect = MouseCellCalibrator.Capture(config, targetBinding);
             }
 
             UserSettings settings = new UserSettings();
@@ -155,8 +166,17 @@ namespace FH6SkillPointOcr
             Point center = new Point(
                 (int)Math.Round(gridRect.Left + gridRect.Width / 2),
                 (int)Math.Round(gridRect.Top + gridRect.Height / 2));
-            WindowBinding binding;
-            if (WindowLocator.TryBindFromPoint(center, Process.GetCurrentProcess().Id, out binding))
+            WindowBinding binding = targetBinding;
+            if (binding == null)
+            {
+                WindowLocator.TryBindFromPoint(center, Process.GetCurrentProcess().Id, out binding);
+            }
+            else
+            {
+                WindowLocator.TryRefresh(binding);
+            }
+
+            if (binding != null)
             {
                 settings.WindowBoundCalibration = true;
                 settings.CalibrationClientLeft = binding.ClientBounds.Left;
@@ -175,7 +195,97 @@ namespace FH6SkillPointOcr
             Console.WriteLine("[SETTINGS] 已保存 " + path);
             Console.WriteLine("[SETTINGS] 整体区域：left={0:0}, top={1:0}, width={2:0}, height={3:0}", gridRect.Left, gridRect.Top, gridRect.Width, gridRect.Height);
             Console.WriteLine("[SETTINGS] 单格尺寸：width={0:0}, height={1:0}", settings.GridCellWidth, settings.GridCellHeight);
+            WriteCalibrationDiagnostic(config, settings);
             return settings;
+        }
+
+        private static void WriteCalibrationDiagnostic(Config config, UserSettings settings)
+        {
+            try
+            {
+                Rectangle capture = ResolveCalibrationCaptureBounds(config, settings);
+                if (capture.Width <= 0 || capture.Height <= 0) return;
+
+                string debugDir = config.ResolvePath(config.DebugDir);
+                Directory.CreateDirectory(debugDir);
+                string textPath = Path.Combine(debugDir, "calibration-grid-last.txt");
+                File.WriteAllText(
+                    textPath,
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "capture={0},{1},{2},{3}\r\ngrid={4:0.##},{5:0.##},{6:0.##},{7:0.##}\r\nrows={8}\r\ncolumns={9}\r\nwindow_bound={10}\r\n",
+                        capture.Left,
+                        capture.Top,
+                        capture.Width,
+                        capture.Height,
+                        settings.GridCellLeft,
+                        settings.GridCellTop,
+                        settings.GridCellWidth,
+                        settings.GridCellHeight,
+                        settings.VisibleRows,
+                        settings.VisibleColumns,
+                        settings.WindowBoundCalibration),
+                    Encoding.UTF8);
+                string path = Path.Combine(debugDir, "calibration-grid-last.png");
+                using (Bitmap bitmap = new Bitmap(capture.Width, capture.Height, PixelFormat.Format24bppRgb))
+                using (Graphics g = Graphics.FromImage(bitmap))
+                {
+                    g.CopyFromScreen(capture.Left, capture.Top, 0, 0, capture.Size, CopyPixelOperation.SourceCopy);
+                    using (Pen pen = new Pen(Color.Red, 4))
+                    using (Brush brush = new SolidBrush(Color.Yellow))
+                    using (Font font = new Font("Consolas", 24, FontStyle.Bold))
+                    {
+                        string title = string.Format(
+                            CultureInfo.InvariantCulture,
+                            "capture={0},{1},{2},{3} grid={4:0},{5:0},{6:0.##},{7:0.##}",
+                            capture.Left,
+                            capture.Top,
+                            capture.Width,
+                            capture.Height,
+                            settings.GridCellLeft,
+                            settings.GridCellTop,
+                            settings.GridCellWidth,
+                            settings.GridCellHeight);
+                        g.DrawString(title, font, brush, 24, 24);
+                        for (int row = 0; row < settings.VisibleRows; row++)
+                        {
+                            for (int col = 0; col < settings.VisibleColumns; col++)
+                            {
+                                float x = (float)(settings.GridCellLeft - capture.Left + col * settings.GridCellWidth);
+                                float y = (float)(settings.GridCellTop - capture.Top + row * settings.GridCellHeight);
+                                float width = (float)settings.GridCellWidth;
+                                float height = (float)settings.GridCellHeight;
+                                g.DrawRectangle(pen, x, y, width, height);
+                                g.DrawString(col.ToString(CultureInfo.InvariantCulture) + "," + row.ToString(CultureInfo.InvariantCulture), font, brush, x + 10, y + 10);
+                            }
+                        }
+                    }
+                    bitmap.Save(path, ImageFormat.Png);
+                }
+                Console.WriteLine("[SETTINGS] 已生成框选诊断图：" + path);
+                Console.WriteLine("[SETTINGS] 如果这张图里的红框已经偏了，说明保存值/框选阶段有问题；如果这张图是准的，说明运行时叠加层显示有问题。");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[SETTINGS] 框选诊断图生成失败：" + ex.Message);
+            }
+        }
+
+        private static Rectangle ResolveCalibrationCaptureBounds(Config config, UserSettings settings)
+        {
+            if (settings.WindowBoundCalibration && settings.CalibrationClientWidth > 0 && settings.CalibrationClientHeight > 0)
+            {
+                return new Rectangle(
+                    (int)Math.Round(settings.CalibrationClientLeft),
+                    (int)Math.Round(settings.CalibrationClientTop),
+                    (int)Math.Round(settings.CalibrationClientWidth),
+                    (int)Math.Round(settings.CalibrationClientHeight));
+            }
+
+            Screen[] screens = Screen.AllScreens;
+            int index = Math.Max(0, config.MonitorIndex - 1);
+            if (index >= screens.Length) index = 0;
+            return screens[index].Bounds;
         }
 
         private static int ReadPositiveInt(string prompt, int defaultValue)

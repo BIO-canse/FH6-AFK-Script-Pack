@@ -59,9 +59,9 @@ namespace FH6SkillPointOcr
                     config.OverlayEnabled = false;
                 }
 
-                OcrReader.Preflight(config);
-                UserSettings.LoadOrCreate(config);
                 AutomationTask task = options.Task.HasValue ? options.Task.Value : GuessTaskFromExecutableName();
+                RunOcrPreflight(config, options, task);
+                UserSettings.LoadOrCreate(config);
                 int skillPoints = task == AutomationTask.FullAuto ? AskSkillPointTotal(options) : (task == AutomationTask.SkillPoints ? AskSkillPointTotal(options) : int.MaxValue);
                 long credits = task == AutomationTask.FullAuto ? AskCreditTotal(options) : long.MaxValue;
                 bool quickVerify = AskFullAutoQuickVerify(options, task);
@@ -117,6 +117,43 @@ namespace FH6SkillPointOcr
         {
             if (task != AutomationTask.DeleteVehicles && task != AutomationTask.SkillPoints) return VirtualListLoadMode.None;
             return options.ReuseVehicleListState ? VirtualListLoadMode.FullState : VirtualListLoadMode.None;
+        }
+
+        private static void RunOcrPreflight(Config config, CliOptions options, AutomationTask task)
+        {
+            bool interactive = ShouldUseInteractivePreflightBarrier(options, task);
+            if (interactive)
+            {
+                Console.WriteLine("[OCR_DEP] 正在检测 OCR 和运行环境，请不要提前输入技术点、CR 或其它内容。");
+                Console.WriteLine("[OCR_DEP] 检测期间输入的内容不会作为后续问题答案使用。");
+            }
+
+            OcrReader.Preflight(config);
+
+            if (interactive)
+            {
+                WaitForEmptyEnterAfterPreflight();
+            }
+        }
+
+        private static bool ShouldUseInteractivePreflightBarrier(CliOptions options, AutomationTask task)
+        {
+            if (options.ReuseVehicleListState) return false;
+            if (!string.IsNullOrWhiteSpace(options.SafeStopFile)) return false;
+            if (!string.IsNullOrWhiteSpace(options.SkillPointsStateFile)) return false;
+            if (!string.IsNullOrWhiteSpace(options.SkillPointsLogFile)) return false;
+            return task == AutomationTask.FullAuto || task == AutomationTask.SkillPoints || task == AutomationTask.DeleteVehicles || task == AutomationTask.BlueprintCycleTest;
+        }
+
+        private static void WaitForEmptyEnterAfterPreflight()
+        {
+            while (true)
+            {
+                Console.Write("[OCR_DEP] 检测完成。请按一次 Enter 继续（不要输入其它内容）：");
+                string input = Console.ReadLine() ?? "";
+                if (input.Length == 0) return;
+                Console.WriteLine("[OCR_DEP] 已丢弃提前输入的内容：\"" + input + "\"。请重新按一次空 Enter 继续。");
+            }
         }
 
         private static int AskSkillPointTotal(CliOptions options)

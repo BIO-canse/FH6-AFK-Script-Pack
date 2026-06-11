@@ -48,7 +48,7 @@ namespace FH6SkillPointOcr
             foreach (KeyValuePair<CellKey, int> pair in observation.PerformanceScores)
             {
                 if (!observation.TargetCells.Contains(pair.Key)) continue;
-                if (pair.Value != 900) continue;
+                if (pair.Value != config.DrivePerformanceScore) continue;
                 if (observation.ValidNewCells.Contains(pair.Key)) continue;
                 if (observation.DeletableCells.Contains(pair.Key)) continue;
                 if (observation.InvalidNewCells.Contains(pair.Key)) continue;

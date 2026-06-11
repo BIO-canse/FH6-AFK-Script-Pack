@@ -5,7 +5,7 @@
 - `ScreenCapture`：C# / WinForms 截图，支持全屏和区域截图。
 - `OcrReader`：统一返回文本候选坐标。发布包分为两个 OCR 后端版本：`MediaOCR` 版默认使用 Windows 自带 `Windows.Media.Ocr`，少依赖、优先解决用户电脑 OCR 闪退；`PaddleOCR` 版保留本地 PaddleOCR PP-OCRv5，准确率更高但依赖更重。
 - OCR 候选必须保留语言来源，不能把中文和英文结果粗暴合并后交给同一个匹配器。用户原话：“车名交给英语，年份+斯巴鲁后面的斯巴鲁部分会被中文识别到，我们会拿到两个坐标，然后放到一起不就行了？”当前实现按这个边界处理：中文 UI、制造商、`全新` 只消费中文 OCR 结果；`IMPREZA 22B-STI` 只消费英文 OCR 结果；数字/性能分按格子位置和数值规则过滤。
-- `InputController`：C# P/Invoke `SendInput` 键鼠动作。
+- `InputController`：C# P/Invoke 输入层。键盘仍使用 `SendInput`；鼠标默认不移动真实鼠标，而是维护虚拟鼠标坐标，并向绑定窗口发送点击/滚轮消息，同时屏蔽真实鼠标对绑定窗口客户区的物理鼠标输入。
 - `StateMachine`：主流程状态机。
 - `GridGeometry`：车辆格子的固定像素几何，来自首次手动框选的完整可见车辆格子整体区域。
 - `SemanticCellMapper`：把 OCR 框映射到虚拟格子。不能再只用 OCR 框中心点直接 `MapPoint`；按字段语义处理合理偏移：车名/制造商按上方文字区域映射，落到上一行下 1/4 的名字归到下一行；`全新`、性能分等底部标识按底部区域映射，落到下一列左下角的标识归到左侧当前列。

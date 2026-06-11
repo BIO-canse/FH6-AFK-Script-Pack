@@ -116,6 +116,27 @@ namespace FH6SkillPointOcr
             WindowScaled = true;
             lastClientBounds = clientBounds;
             BuildCells();
+            RectangleF firstCell;
+            if (cells.TryGetValue(new CellKey(0, 0), out firstCell))
+            {
+                Console.WriteLine(string.Format(
+                    CultureInfo.InvariantCulture,
+                    "[GRID_SYNC] current=[{0},{1},{2},{3}] calibration=[{4:0},{5:0},{6:0},{7:0}] scale=({8:0.000},{9:0.000}) first=[{10:0.0},{11:0.0},{12:0.0},{13:0.0}]",
+                    clientBounds.Left,
+                    clientBounds.Top,
+                    clientBounds.Width,
+                    clientBounds.Height,
+                    config.CalibrationClientLeft,
+                    config.CalibrationClientTop,
+                    config.CalibrationClientWidth,
+                    config.CalibrationClientHeight,
+                    scaleX,
+                    scaleY,
+                    firstCell.Left,
+                    firstCell.Top,
+                    firstCell.Width,
+                    firstCell.Height));
+            }
         }
 
         public bool TryGetFirstVisibleCellCenter(out Point point)

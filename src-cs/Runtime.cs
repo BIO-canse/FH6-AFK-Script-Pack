@@ -64,6 +64,7 @@ namespace FH6SkillPointOcr
         private List<OcrFieldView> lastOcrFields = new List<OcrFieldView>();
         private bool subaruListBoundaryReached;
         private string subaruListBoundaryReason = "";
+        private uint priorityAppliedProcessId;
 
         public Runtime(Config config, bool dryRun, bool stepDebug, int initialSkillPoints, long initialCredits, AutomationTask task, bool useFullManufacturerFlow, VirtualListLoadMode virtualListLoadMode, bool handoffStart, bool quickVerifyMode, string safeStopFile, string skillPointsStateFile, string skillPointsLogFile)
         {
@@ -78,8 +79,14 @@ namespace FH6SkillPointOcr
             remainingSkillPoints = initialSkillPoints;
             remainingCredits = initialCredits;
             firstRunSkillPoints = initialSkillPoints;
-            input = new InputController(config.TapMs, config.RepeatIntervalMs, dryRun, safeStopFile);
-            capture = new ScreenCapture(config.MonitorIndex);
+            input = new InputController(
+                config.TapMs,
+                config.RepeatIntervalMs,
+                dryRun,
+                safeStopFile,
+                config.UseWindowMessageMouseInput,
+                config.BlockPhysicalMouseOnBoundWindow);
+            capture = new ScreenCapture(config.MonitorIndex, config.TargetWindowProcessKeywords, config.TargetWindowTitleKeywords);
             grid = new GridGeometry(config);
             cellMapper = new SemanticCellMapper(grid);
             debugDir = config.ResolvePath(config.DebugDir);
@@ -92,7 +99,7 @@ namespace FH6SkillPointOcr
             ocr = new OcrReader(config, stepDebug ? debugScreenshotDir : null);
             string virtualListLog = Path.Combine(debugDir, "virtual-list-edits-" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + ".log");
             string virtualListPath = config.ResolvePath(config.VirtualListPath);
-            vehicleList = new VirtualVehicleList(config.GridRows, virtualListLog, virtualListPath, virtualListLoadMode);
+            vehicleList = new VirtualVehicleList(config.GridRows, virtualListLog, virtualListPath, virtualListLoadMode, config.DrivePerformanceScore);
             overlay = new OverlayRenderer(config.OverlayEnabled);
             LoadSkillPointCountersFromState();
             PersistSkillPointsState("init");
@@ -101,6 +108,7 @@ namespace FH6SkillPointOcr
         public void Run()
         {
             overlay.Start();
+            overlay.FollowTargetScreen(capture.GetBounds());
             try
             {
                 if (task == AutomationTask.FullAuto)
@@ -135,6 +143,7 @@ namespace FH6SkillPointOcr
             {
                 KillUiCacheOcrGuards();
                 overlay.Stop();
+                input.Dispose();
                 ocr.Dispose();
             }
         }

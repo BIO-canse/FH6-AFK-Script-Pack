@@ -84,7 +84,7 @@ namespace FH6AutomationShared
             public const string TargetVehicle = "IMPREZA 22B-STI";
             public const string NewBadge = "全新";
             public const string DeleteMarker = "600";
-            public const string DriveMarker = "900";
+            public const string DriveMarker = "834";
             public const string CreativeCenter = "创意中心";
             public const string LatestHot = "最新最热";
             public const string MyFavorites = "我的收藏";
@@ -105,6 +105,7 @@ namespace FH6AutomationShared
             public const int PreCreativeExitEscCount = 4;
             public const int DefaultGridRows = 3;
             public const int RetainedKnownColumns = 1;
+            public const int DrivePerformanceScore = 834;
         }
 
         internal static class SkillPoints

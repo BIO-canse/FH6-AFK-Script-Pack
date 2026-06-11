@@ -1,37 +1,37 @@
 @echo off
 cd /d "%~dp0"
 if not exist bin mkdir bin
-"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe /platform:x64 /main:FH6SkillPointOcr.EmergencyStopWatcherProgram /out:bin\FH6EmergencyStopWatcher.exe /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll shared-cs\*.cs src-cs\*.cs
+"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe /platform:x64 /win32manifest:app.manifest /main:FH6SkillPointOcr.EmergencyStopWatcherProgram /out:bin\FH6EmergencyStopWatcher.exe /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll shared-cs\*.cs src-cs\*.cs
 if errorlevel 1 (
   pause
   exit /b 1
 )
-"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe /platform:x64 /main:FH6SkillPointOcr.Program /out:bin\FH6SkillPointOcr.exe /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll shared-cs\*.cs src-cs\*.cs
+"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe /platform:x64 /win32manifest:app.manifest /main:FH6SkillPointOcr.Program /out:bin\FH6SkillPointOcr.exe /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll shared-cs\*.cs src-cs\*.cs
 if errorlevel 1 (
   pause
   exit /b 1
 )
-"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe /platform:x64 /main:FH6SkillPointOcr.Program /out:bin\FH6VehicleDeleteOcr.exe /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll shared-cs\*.cs src-cs\*.cs
+"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe /platform:x64 /win32manifest:app.manifest /main:FH6SkillPointOcr.Program /out:bin\FH6VehicleDeleteOcr.exe /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll shared-cs\*.cs src-cs\*.cs
 if errorlevel 1 (
   pause
   exit /b 1
 )
-"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe /platform:x64 /main:FH6SkillPointOcr.Program /out:bin\FH6FullAuto.exe /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll shared-cs\*.cs src-cs\*.cs
+"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe /platform:x64 /win32manifest:app.manifest /main:FH6SkillPointOcr.Program /out:bin\FH6FullAuto.exe /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll shared-cs\*.cs src-cs\*.cs
 if errorlevel 1 (
   pause
   exit /b 1
 )
-"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe /platform:x64 /main:FH6SkillPointOcr.Program /out:bin\FH6BlueprintCycleTest.exe /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll shared-cs\*.cs src-cs\*.cs
+"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe /platform:x64 /win32manifest:app.manifest /main:FH6SkillPointOcr.Program /out:bin\FH6BlueprintCycleTest.exe /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll shared-cs\*.cs src-cs\*.cs
 if errorlevel 1 (
   pause
   exit /b 1
 )
-"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe /platform:x64 /main:FH6SkillPointOcr.BuyPreludeDebugProgram /out:bin\FH6BuyPreludeStepDebug.exe /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll shared-cs\*.cs src-cs\*.cs
+"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe /platform:x64 /win32manifest:app.manifest /main:FH6SkillPointOcr.BuyPreludeDebugProgram /out:bin\FH6BuyPreludeStepDebug.exe /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll shared-cs\*.cs src-cs\*.cs
 if errorlevel 1 (
   pause
   exit /b 1
 )
-"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe /platform:x64 /main:FH6SkillPointOcr.UiCacheOcrGuardProgram /out:bin\FH6UiCacheOcrGuard.exe /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll shared-cs\*.cs src-cs\*.cs
+"%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:exe /platform:x64 /win32manifest:app.manifest /main:FH6SkillPointOcr.UiCacheOcrGuardProgram /out:bin\FH6UiCacheOcrGuard.exe /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll shared-cs\*.cs src-cs\*.cs
 if errorlevel 1 (
   pause
   exit /b 1

@@ -21,13 +21,22 @@ namespace FH6SkillPointOcr
     {
         private readonly int monitorIndex;
         private readonly int currentProcessId;
+        private readonly List<string> targetWindowProcessKeywords;
+        private readonly List<string> targetWindowTitleKeywords;
         private bool windowBindingEnabled;
         private WindowBinding boundWindow;
 
         public ScreenCapture(int monitorIndex)
+            : this(monitorIndex, null, null)
+        {
+        }
+
+        public ScreenCapture(int monitorIndex, List<string> targetWindowProcessKeywords, List<string> targetWindowTitleKeywords)
         {
             this.monitorIndex = monitorIndex;
             currentProcessId = Process.GetCurrentProcess().Id;
+            this.targetWindowProcessKeywords = targetWindowProcessKeywords ?? new List<string>();
+            this.targetWindowTitleKeywords = targetWindowTitleKeywords ?? new List<string>();
         }
 
         public Screenshot Grab()
@@ -67,7 +76,7 @@ namespace FH6SkillPointOcr
             }
             else
             {
-                Console.WriteLine("[WINDOW_BIND] " + reason + " -> 未能绑定前台窗口，暂时回退到配置显示器。");
+                Console.WriteLine("[WINDOW_BIND] " + reason + " -> 未能找到 FH6/Forza 目标窗口，暂时回退到配置显示器。");
             }
         }
 
@@ -89,6 +98,33 @@ namespace FH6SkillPointOcr
             }
         }
 
+        public uint BoundProcessId
+        {
+            get
+            {
+                return IsWindowBound && boundWindow != null ? boundWindow.ProcessId : 0;
+            }
+        }
+
+        public Size BoundMessageClientSize
+        {
+            get
+            {
+                return IsWindowBound && boundWindow != null ? boundWindow.MessageClientSize : Size.Empty;
+            }
+        }
+
+        public bool TryGetBoundWindowTarget(out IntPtr hwnd, out Rectangle bounds)
+        {
+            hwnd = IntPtr.Zero;
+            bounds = Rectangle.Empty;
+            Rectangle refreshedBounds;
+            if (!TryGetBoundWindowBounds(out refreshedBounds) || boundWindow == null) return false;
+            hwnd = boundWindow.Handle;
+            bounds = refreshedBounds;
+            return hwnd != IntPtr.Zero;
+        }
+
         private Rectangle GetConfiguredBounds()
         {
             Screen[] screens = Screen.AllScreens;
@@ -100,17 +136,29 @@ namespace FH6SkillPointOcr
         private bool TryGetBoundWindowBounds(out Rectangle bounds)
         {
             bounds = Rectangle.Empty;
+            if (!windowBindingEnabled) return false;
+
+            WindowBinding targetBinding;
+            if (WindowLocator.TryBindTargetWindow(currentProcessId, targetWindowProcessKeywords, targetWindowTitleKeywords, out targetBinding))
+            {
+                if (boundWindow == null || boundWindow.Handle != targetBinding.Handle)
+                {
+                    Console.WriteLine("[WINDOW_BIND] 自动找到目标窗口 -> " + targetBinding.Summary());
+                }
+                boundWindow = targetBinding;
+                bounds = targetBinding.ClientBounds;
+                return true;
+            }
+
             if (boundWindow != null && WindowLocator.TryRefresh(boundWindow))
             {
                 bounds = boundWindow.ClientBounds;
                 return true;
             }
 
-            boundWindow = null;
-            if (!windowBindingEnabled) return false;
-
             WindowBinding binding;
             if (!WindowLocator.TryBindForeground(currentProcessId, out binding)) return false;
+            Console.WriteLine("[WINDOW_BIND] 未找到 FH6/Forza 目标窗口，回退绑定前台窗口 -> " + binding.Summary());
             boundWindow = binding;
             bounds = binding.ClientBounds;
             return true;

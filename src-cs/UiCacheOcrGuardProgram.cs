@@ -35,7 +35,7 @@ namespace FH6SkillPointOcr
                 string debugDir = Path.Combine(config.ResolvePath(config.DebugDir), "ui-cache-guard");
                 Directory.CreateDirectory(debugDir);
 
-                ScreenCapture capture = new ScreenCapture(config.MonitorIndex);
+                ScreenCapture capture = new ScreenCapture(config.MonitorIndex, config.TargetWindowProcessKeywords, config.TargetWindowTitleKeywords);
                 capture.EnableWindowBinding("ui cache ocr guard");
 
                 Screenshot shot = capture.Grab();
@@ -262,11 +262,22 @@ namespace FH6SkillPointOcr
 
         private static void EnableDpiAwareness()
         {
+            try
+            {
+                if (SetProcessDpiAwarenessContext(new IntPtr(-4))) return;
+            }
+            catch
+            {
+            }
+
             try { SetProcessDPIAware(); } catch { }
         }
 
         [DllImport("user32.dll")]
         private static extern bool SetProcessDPIAware();
+
+        [DllImport("user32.dll")]
+        private static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
 
         private sealed class GuardOptions
         {

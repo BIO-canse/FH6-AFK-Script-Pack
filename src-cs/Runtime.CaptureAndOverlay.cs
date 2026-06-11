@@ -233,8 +233,78 @@ namespace FH6SkillPointOcr
         private void RefreshWindowBindingAndGrid(string reason)
         {
             if (!capture.WindowBindingEnabled) return;
-            Rectangle bounds = capture.GetBounds();
-            grid.SyncToClientBounds(bounds);
+            IntPtr hwnd;
+            Rectangle bounds;
+            if (capture.TryGetBoundWindowTarget(out hwnd, out bounds))
+            {
+                overlay.FollowTargetScreen(bounds);
+                grid.SyncToClientBounds(bounds);
+                input.BindTargetWindow(hwnd, bounds, capture.BoundMessageClientSize, reason);
+                ApplyTargetProcessPriority();
+            }
+        }
+
+        private void ApplyTargetProcessPriority()
+        {
+            uint processId = capture.BoundProcessId;
+            if (processId == 0 || processId == priorityAppliedProcessId) return;
+
+            ProcessPriorityClass priority;
+            if (!TryParseTargetPriority(config.TargetProcessPriority, out priority))
+            {
+                Console.WriteLine("[WINDOW_BIND] 未识别的 target_process_priority=" + config.TargetProcessPriority + "，跳过优先级设置。");
+                priorityAppliedProcessId = processId;
+                return;
+            }
+
+            try
+            {
+                using (Process process = Process.GetProcessById((int)processId))
+                {
+                    process.PriorityClass = priority;
+                    Console.WriteLine("[WINDOW_BIND] 已设置目标进程优先级：" + process.ProcessName + " pid=" + processId + " priority=" + priority);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[WINDOW_BIND] 设置目标进程优先级失败：" + ex.Message);
+                FH6FailureLog.Write("Runtime.ApplyTargetProcessPriority", ex);
+            }
+            finally
+            {
+                priorityAppliedProcessId = processId;
+            }
+        }
+
+        private static bool TryParseTargetPriority(string text, out ProcessPriorityClass priority)
+        {
+            priority = ProcessPriorityClass.High;
+            string value = (text ?? "").Trim();
+            if (value.Length == 0 || value.Equals("Off", StringComparison.OrdinalIgnoreCase) || value.Equals("None", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            if (value.Equals("High", StringComparison.OrdinalIgnoreCase))
+            {
+                priority = ProcessPriorityClass.High;
+                return true;
+            }
+            if (value.Equals("AboveNormal", StringComparison.OrdinalIgnoreCase) || value.Equals("Above_Normal", StringComparison.OrdinalIgnoreCase))
+            {
+                priority = ProcessPriorityClass.AboveNormal;
+                return true;
+            }
+            if (value.Equals("Normal", StringComparison.OrdinalIgnoreCase))
+            {
+                priority = ProcessPriorityClass.Normal;
+                return true;
+            }
+            if (value.Equals("RealTime", StringComparison.OrdinalIgnoreCase) || value.Equals("Realtime", StringComparison.OrdinalIgnoreCase) || value.Equals("Real_Time", StringComparison.OrdinalIgnoreCase))
+            {
+                priority = ProcessPriorityClass.RealTime;
+                return true;
+            }
+            return Enum.TryParse(value, true, out priority);
         }
 
         private void SetStatus(string newStatus, string newNextAction)

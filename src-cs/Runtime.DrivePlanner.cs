@@ -68,16 +68,16 @@ namespace FH6SkillPointOcr
                 string scoreText = vehicleList.TryGetDriveVehicleScore(targetGlobal, out score)
                     ? score.ToString(CultureInfo.InvariantCulture)
                     : "?";
-                return DriveSearchDecision.Select(targetGlobal, "虚拟表内已选出列表最前的 900 分状态 2 指定车型，性能分 " + scoreText + "，生成键盘路径");
+                return DriveSearchDecision.Select(targetGlobal, "虚拟表内已选出列表最前的 " + config.DrivePerformanceScore + " 分状态 2 指定车型，性能分 " + scoreText + "，生成键盘路径");
             }
 
             if (UseTableOnlyVehicleSearch())
             {
                 if (vehicleList.HasDriveVehicle)
                 {
-                    return DriveSearchDecision.Observe("定表内仍有 900 分状态 2 开蓝图候选，但当前 offset 后方没有候选，可能已经滚过目标");
+                    return DriveSearchDecision.Observe("定表内仍有 " + config.DrivePerformanceScore + " 分状态 2 开蓝图候选，但当前 offset 后方没有候选，可能已经滚过目标");
                 }
-                return DriveSearchDecision.Observe("定表虚拟列表内没有 900 分状态 2 指定车型；按规则这里不允许默认退出或默认第一格");
+                return DriveSearchDecision.Observe("定表虚拟列表内没有 " + config.DrivePerformanceScore + " 分状态 2 指定车型；按规则这里不允许默认退出或默认第一格");
             }
 
             if (subaruListBoundaryReached)
