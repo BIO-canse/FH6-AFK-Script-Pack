@@ -82,7 +82,7 @@ namespace FH6SkillPointOcr
                 new OcrFieldGroup("车名", observation.TargetMatches),
                 new OcrFieldGroup("全新", observation.NewBadgeMatches),
                 new OcrFieldGroup("斯巴鲁", observation.ManufacturerMatches),
-                new OcrFieldGroup("600", observation.DeleteMarkerMatches),
+                new OcrFieldGroup(config.SkillVehiclePerformanceScore.ToString(), observation.DeleteMarkerMatches),
                 new OcrFieldGroup("性能分", observation.PerformanceScoreMatches));
             SetOcrSummary(FullObservationSummary(observation, ", 定表滚动=" + scrollIndex + ", 忽略前置列=" + ignoredLeadingColumns));
             UpdateOverlay(

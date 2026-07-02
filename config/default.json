@@ -1,4 +1,11 @@
 {
+  "blueprint_skill_points_per_run": 50,
+  "blueprint_net_time_ms": 101000,
+  "blueprint_loop_extra_ms": 25300,
+  "blueprint_after_x_wait_ms": 1000,
+  "blueprint_post_enter_wait_ms": 10000,
+  "drive_vehicle_performance_score": 834,
+  "skill_vehicle_performance_score": 600,
   "ocr_engine": "paddleocr",
   "rapidocr_python": "",
   "rapidocr_bridge": "runtime/rapidocr_bridge.py",
@@ -16,7 +23,7 @@
   "full_auto_stage_gap_ms": 1000,
   "ui_ocr_stable_wait_ms": 1000,
   "ui_cache_click_wait_ms": 500,
-  "minute_loop_enter_to_x_wait_ms": 28000,
+  "minute_loop_enter_to_x_wait_ms": 115000,
   "use_window_message_mouse_input": true,
   "block_physical_mouse_on_bound_window": true,
   "target_window_process_keywords": [

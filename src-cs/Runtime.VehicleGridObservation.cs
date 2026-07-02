@@ -32,7 +32,7 @@ namespace FH6SkillPointOcr
 
             foreach (KeyValuePair<CellKey, int> pair in observation.PerformanceScores)
             {
-                if (observation.TargetCells.Contains(pair.Key) && pair.Value == 600) observation.DeletableCells.Add(pair.Key);
+                if (observation.TargetCells.Contains(pair.Key) && pair.Value == config.SkillVehiclePerformanceScore) observation.DeletableCells.Add(pair.Key);
             }
 
             foreach (OcrMatch match in observation.NewBadgeMatches)
@@ -40,8 +40,8 @@ namespace FH6SkillPointOcr
                 CellKey cell;
                 if (!cellMapper.TryMapBottomMarker(match, out cell)) continue;
                 int score;
-                bool scoreIs600 = observation.PerformanceScores.TryGetValue(cell, out score) && score == 600;
-                if (observation.TargetCells.Contains(cell) && scoreIs600) observation.ValidNewCells.Add(cell);
+                bool scoreIsSkillVehicle = observation.PerformanceScores.TryGetValue(cell, out score) && score == config.SkillVehiclePerformanceScore;
+                if (observation.TargetCells.Contains(cell) && scoreIsSkillVehicle) observation.ValidNewCells.Add(cell);
                 else observation.InvalidNewCells.Add(cell);
             }
 
@@ -70,7 +70,7 @@ namespace FH6SkillPointOcr
                 new OcrFieldGroup("车名", observation.TargetMatches),
                 new OcrFieldGroup("全新", observation.NewBadgeMatches),
                 new OcrFieldGroup("斯巴鲁", observation.ManufacturerMatches),
-                new OcrFieldGroup("600", observation.DeleteMarkerMatches),
+                new OcrFieldGroup(config.SkillVehiclePerformanceScore.ToString(), observation.DeleteMarkerMatches),
                 new OcrFieldGroup("性能分", observation.PerformanceScoreMatches));
             UpdateSubaruListBoundary(observation.ManufacturerMatches);
             vehicleList.ApplyFullObservation(
@@ -96,7 +96,7 @@ namespace FH6SkillPointOcr
         {
             return "OCR: IMPREZA=" + observation.TargetMatches.Count
                 + ", 全新=" + observation.NewBadgeMatches.Count
-                + ", 600=" + observation.DeleteMarkerMatches.Count
+                + ", 技能分=" + observation.DeleteMarkerMatches.Count
                 + ", 性能分=" + observation.PerformanceScoreMatches.Count
                 + ", 斯巴鲁=" + observation.ManufacturerMatches.Count
                 + ", 分数=" + observation.PerformanceScores.Count

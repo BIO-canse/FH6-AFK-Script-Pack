@@ -79,7 +79,7 @@ namespace FH6SkillPointOcr
             long remainingMs = 0;
             if (loops > 0)
             {
-                long totalMs = (long)loops * config.MinuteLoopEstimatedLoopMs;
+                long totalMs = (long)loops * config.BlueprintEstimatedLoopMs;
                 long elapsedMs = Math.Max(0, (long)(DateTime.UtcNow - estimateAnchorUtc).TotalMilliseconds);
                 remainingMs = Math.Max(0, totalMs - elapsedMs);
             }
@@ -93,7 +93,7 @@ namespace FH6SkillPointOcr
                 loops,
                 FormatDurationCompact(TimeSpan.FromMilliseconds(remainingMs)),
                 finishAt.ToString("HH:mm:ss", CultureInfo.InvariantCulture),
-                FH6AutomationConstants.SkillPoints.MinuteLoopGain);
+                config.BlueprintSkillPointsPerRun);
             minuteLoopSummary = summary;
             return "刷技术点中；" + summary;
         }
@@ -102,7 +102,7 @@ namespace FH6SkillPointOcr
         {
             int missing = FullAutoSkillPointTarget() - remainingSkillPoints;
             if (missing <= 0) return 0;
-            return (missing + FH6AutomationConstants.SkillPoints.MinuteLoopGain - 1) / FH6AutomationConstants.SkillPoints.MinuteLoopGain;
+            return (missing + config.BlueprintSkillPointsPerRun - 1) / config.BlueprintSkillPointsPerRun;
         }
 
         private static string FormatDurationCompact(TimeSpan duration)

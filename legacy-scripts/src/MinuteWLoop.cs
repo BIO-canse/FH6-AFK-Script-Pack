@@ -24,7 +24,10 @@ internal static class MinuteWLoop
     private static int EventIndex;
     private static int MinuteLoopCount;
     private static int SkillPointsTarget = FH6AutomationConstants.SkillPoints.Max;
+    private static int SkillPointsPerLoop = FH6AutomationConstants.SkillPoints.MinuteLoopGain;
     private static int EnterToXWaitMs = FH6AutomationConstants.SkillPoints.MinuteLoopEnterToXWaitMs;
+    private static int AfterXWaitMs = FH6AutomationConstants.SkillPoints.MinuteLoopAfterXWaitMs;
+    private static int PostEnterWaitMs = FH6AutomationConstants.Timing.TenSecondsMs;
     private static bool TrackSkillPoints;
     private static bool HandoffStart;
 
@@ -50,7 +53,10 @@ internal static class MinuteWLoop
         SkillPointsStateFile = ParseArg(args, "--skill-points-state-file");
         SkillPointsLogFile = ParseArg(args, "--skill-points-log-file");
         SkillPointsTarget = Math.Max(0, Math.Min(FH6AutomationConstants.SkillPoints.Max, ParseIntArg(args, "--skill-points-target", FH6AutomationConstants.SkillPoints.Max)));
-        EnterToXWaitMs = Math.Max(5000, Math.Min(120000, ParseIntArg(args, "--enter-to-x-wait-ms", FH6AutomationConstants.SkillPoints.MinuteLoopEnterToXWaitMs)));
+        SkillPointsPerLoop = Math.Max(1, ParseIntArg(args, "--skill-points-per-loop", FH6AutomationConstants.SkillPoints.MinuteLoopGain));
+        EnterToXWaitMs = Math.Max(1000, ParseIntArg(args, "--enter-to-x-wait-ms", FH6AutomationConstants.SkillPoints.MinuteLoopEnterToXWaitMs));
+        AfterXWaitMs = Math.Max(0, ParseIntArg(args, "--after-x-wait-ms", FH6AutomationConstants.SkillPoints.MinuteLoopAfterXWaitMs));
+        PostEnterWaitMs = Math.Max(0, ParseIntArg(args, "--post-enter-wait-ms", FH6AutomationConstants.Timing.TenSecondsMs));
         HandoffStart = HasFlag(args, "--handoff");
         TrackSkillPoints = !string.IsNullOrWhiteSpace(SkillPointsStateFile);
         if (TrackSkillPoints)
@@ -63,11 +69,15 @@ internal static class MinuteWLoop
         Console.Title = "MinuteWLoop - Space+C 退出";
         Console.WriteLine("程序已启动。");
         Console.WriteLine(HandoffStart ? "衔接启动：跳过开局 10 秒等待。" : "启动后先等待 10 秒。");
-        Console.WriteLine("主循环：确保 W 松开，按 Enter，1 秒后按住 W，Enter 后等待 {0:0.###} 秒，松开 W，按 X，等待 1 秒，按 Enter，等待 10 秒。", EnterToXWaitMs / 1000.0);
+        Console.WriteLine("主循环：确保 W 松开，按 Enter，1 秒后按住 W，按配置等待后松开 W，按 X，再按配置等待并回车。");
+        Console.WriteLine("当前配置：Enter 到 X 等待 {0:0.###} 秒，X 后等待 {1:0.###} 秒，回车后等待 {2:0.###} 秒。",
+            EnterToXWaitMs / 1000.0,
+            AfterXWaitMs / 1000.0,
+            PostEnterWaitMs / 1000.0);
         Console.WriteLine("W 不会在 Enter 前按下，避免菜单选项被 W 移动。");
         if (TrackSkillPoints)
         {
-            Console.WriteLine("内部技术点计数：当前 {0}，每轮 +{1}，到达/超过 {2} 后安全停止。", SkillPoints, FH6AutomationConstants.SkillPoints.MinuteLoopGain, SkillPointsTarget);
+            Console.WriteLine("内部技术点计数：当前 {0}，每轮 +{1}，到达/超过 {2} 后安全停止。", SkillPoints, SkillPointsPerLoop, SkillPointsTarget);
         }
         Console.WriteLine(HandoffStart
             ? "按 Space+C 立即退出。外部安全退出会跑完当前刷技术点循环后退出。衔接启动由主程序负责切回目标窗口。"
@@ -121,7 +131,7 @@ internal static class MinuteWLoop
                 TapKey(KeyX);
                 Console.WriteLine("{0:HH:mm:ss} 已按 X", DateTime.Now);
 
-                if (!WaitOrImmediateExit(TimeSpan.FromMilliseconds(FH6AutomationConstants.SkillPoints.MinuteLoopAfterXWaitMs)))
+                if (!WaitOrImmediateExit(TimeSpan.FromMilliseconds(AfterXWaitMs)))
                 {
                     break;
                 }
@@ -130,7 +140,7 @@ internal static class MinuteWLoop
                 TapKey(KeyEnter);
                 Console.WriteLine("{0:HH:mm:ss} 已按 Enter", DateTime.Now);
 
-                if (!WaitOrImmediateExit(TimeSpan.FromMilliseconds(FH6AutomationConstants.Timing.TenSecondsMs)))
+                if (!WaitOrImmediateExit(TimeSpan.FromMilliseconds(PostEnterWaitMs)))
                 {
                     break;
                 }
@@ -236,7 +246,7 @@ internal static class MinuteWLoop
     {
         if (!TrackSkillPoints) return;
         int before = SkillPoints;
-        SkillPoints = Math.Min(FH6AutomationConstants.SkillPoints.Max, SkillPoints + FH6AutomationConstants.SkillPoints.MinuteLoopGain);
+        SkillPoints = Math.Min(FH6AutomationConstants.SkillPoints.Max, SkillPoints + SkillPointsPerLoop);
         MinuteLoopCount++;
         AppendSkillPointEvent("minute_loop_completed", before, SkillPoints, SkillPoints - before, SuperWheelspins, SuperWheelspins);
         WriteSkillPointsState("minute_loop_completed");

@@ -70,7 +70,7 @@ namespace FH6SkillPointOcr
         {
             ClearSharedUiClickCache("full auto startup");
             ResetFullAutoSessionCounters();
-            SetOcrSummary("总控启动前置: " + FullAutoModeSummary() + "；当前 CR " + remainingCredits + "；买车每辆 " + FH6AutomationConstants.Credits.VehiclePrice + "；第一轮先定表，后续直接读写虚拟列表");
+            SetOcrSummary("总控启动前置: " + FullAutoModeSummary() + "；当前 CR " + remainingCredits + "；买车每辆 " + FH6AutomationConstants.Credits.VehiclePrice + "；刷分车性能分 " + config.DriveVehiclePerformanceScore + "；每次跑图 +" + config.BlueprintSkillPointsPerRun + "；第一轮先定表，后续直接读写虚拟列表");
         }
 
         private void ResetFullAutoSessionCounters()
@@ -92,7 +92,7 @@ namespace FH6SkillPointOcr
             RunChildProcess(ResolveBinPath(FH6AutomationConstants.Files.DeleteVehicleExe), args, "delete");
             ReloadVehicleListStateFromHandoff("delete child completed");
             SetStage("自动删车交接");
-            SetStatus("delete handoff to garage standard", "删车结束停在选择车辆页面，按 Esc 回车库标准位；找 " + config.DrivePerformanceScore + " 车流程不再额外 Esc");
+            SetStatus("delete handoff to garage standard", "删车结束停在选择车辆页面，按 Esc 回车库标准位；找配置刷分车流程不再额外 Esc");
             input.Tap("ESC");
             FullAutoSleep(FH6AutomationConstants.Timing.HalfSecondMs);
         }
@@ -101,15 +101,19 @@ namespace FH6SkillPointOcr
         {
             SetStage("子程序: 刷技术点循环");
             int target = FullAutoSkillPointTarget();
-            SetStatus("minute loop", "启动刷技术点循环，每轮 +" + FH6AutomationConstants.SkillPoints.MinuteLoopGain + "，到达/超过 " + target + " 后安全退出");
+            SetStatus("minute loop", "启动刷技术点循环，每轮 +" + config.BlueprintSkillPointsPerRun + "，到达/超过 " + target + " 后安全退出");
             string safeStopFile = SafeStopPath(FH6AutomationConstants.Files.MinuteSafeStop);
             DeleteFileIfExists(safeStopFile);
             PersistFullAutoSkillPoints("before_minute_loop");
-            string arguments = "--handoff --safe-stop-file " + QuoteArg(safeStopFile)
-                + " --skill-points-target " + target.ToString(CultureInfo.InvariantCulture)
-                + " --enter-to-x-wait-ms " + config.MinuteLoopEnterToXWaitMs.ToString(CultureInfo.InvariantCulture)
-                + " --skill-points-state-file " + QuoteArg(SkillPointsStatePath())
-                + " --skill-points-log-file " + QuoteArg(skillPointsLogFile);
+            string arguments =
+                "--handoff --safe-stop-file " + QuoteArg(safeStopFile) +
+                " --skill-points-target " + target.ToString(CultureInfo.InvariantCulture) +
+                " --skill-points-state-file " + QuoteArg(SkillPointsStatePath()) +
+                " --skill-points-log-file " + QuoteArg(skillPointsLogFile) +
+                " --skill-points-per-loop " + config.BlueprintSkillPointsPerRun.ToString(CultureInfo.InvariantCulture) +
+                " --enter-to-x-wait-ms " + config.BlueprintEnterToXWaitMs.ToString(CultureInfo.InvariantCulture) +
+                " --after-x-wait-ms " + config.BlueprintAfterXWaitMs.ToString(CultureInfo.InvariantCulture) +
+                " --post-enter-wait-ms " + config.BlueprintPostEnterWaitMs.ToString(CultureInfo.InvariantCulture);
             RunMinuteWLoopProcess(safeStopFile, arguments, true);
         }
 
@@ -128,7 +132,7 @@ namespace FH6SkillPointOcr
 
         private void FindDriveCarAndEnterBlueprint()
         {
-            SetStage("找 " + config.DrivePerformanceScore + " 分开蓝图车辆");
+            SetStage("找刷分车开蓝图");
             SetStatus("find drive vehicle startup", "从车库标准位开始：Enter -> 0.5 秒 -> Backspace -> 0.5 秒 -> 滚动+缓存/OCR点斯巴鲁");
             if (!grid.Locked) BuildGrid();
             ReopenSubaruListFromVehicleListForDriveSearch();
@@ -166,7 +170,7 @@ namespace FH6SkillPointOcr
 
         private void RunMinuteWLoopOnceForTest()
         {
-            remainingSkillPoints = FH6AutomationConstants.SkillPoints.Max - FH6AutomationConstants.SkillPoints.MinuteLoopGain;
+            remainingSkillPoints = Math.Max(0, FH6AutomationConstants.SkillPoints.Max - config.BlueprintSkillPointsPerRun);
             PersistFullAutoSkillPoints("blueprint_cycle_test_before_minute_loop_once");
             SetStatus("minute loop test", "运行刷技术点脚本 1 轮，计数从 " + remainingSkillPoints + " 到 " + FH6AutomationConstants.SkillPoints.Max);
             RunMinuteWLoopUntilSkillPointsFull();
@@ -252,7 +256,7 @@ namespace FH6SkillPointOcr
                 return "普通模式: 刷到 " + FH6AutomationConstants.SkillPoints.Max + "，状态3补到 " + FH6AutomationConstants.Flow.BuyTargetValidNewCount;
             }
 
-            return "快速验证模式: 刷到达/超过 " + FH6AutomationConstants.SkillPoints.QuickVerifyTarget + "，买车目标=预计技术点/32=" + FullAutoBuyTargetValidNewCount();
+            return "快速验证模式: 刷到达/超过 " + FH6AutomationConstants.SkillPoints.QuickVerifyTarget + "，买车目标=预计技术点/" + config.SkillPointsPerVehicle + "=" + FullAutoBuyTargetValidNewCount();
         }
 
         private int FullAutoSkillPointTarget()
@@ -266,16 +270,16 @@ namespace FH6SkillPointOcr
             if (remainingSkillPoints >= target) return Math.Min(FH6AutomationConstants.SkillPoints.Max, remainingSkillPoints);
 
             int missing = target - remainingSkillPoints;
-            int loops = (missing + FH6AutomationConstants.SkillPoints.MinuteLoopGain - 1) / FH6AutomationConstants.SkillPoints.MinuteLoopGain;
+            int loops = (missing + config.BlueprintSkillPointsPerRun - 1) / config.BlueprintSkillPointsPerRun;
             return Math.Min(
                 FH6AutomationConstants.SkillPoints.Max,
-                remainingSkillPoints + loops * FH6AutomationConstants.SkillPoints.MinuteLoopGain);
+                remainingSkillPoints + loops * config.BlueprintSkillPointsPerRun);
         }
 
         private int FullAutoBuyTargetValidNewCount()
         {
             if (!quickVerifyMode) return FH6AutomationConstants.Flow.BuyTargetValidNewCount;
-            int target = ProjectedSkillPointsAfterMinuteLoop() / FH6AutomationConstants.SkillPoints.PerVehicle;
+            int target = ProjectedSkillPointsAfterMinuteLoop() / config.SkillPointsPerVehicle;
             return Math.Max(0, Math.Min(FH6AutomationConstants.Flow.BuyTargetValidNewCount, target));
         }
 
@@ -383,7 +387,7 @@ namespace FH6SkillPointOcr
 
         private CellKey FindDriveVehicleCell()
         {
-            SetStatus("find drive vehicle", UseTableOnlyVehicleSearch() ? "按定表虚拟列表选择列表最前的 " + config.DrivePerformanceScore + " 分状态 2 指定车型；没有候选则报错，不 OCR" : "按虚拟表规划下一步：选择、滚动、OCR 或默认第一格");
+            SetStatus("find drive vehicle", UseTableOnlyVehicleSearch() ? "按定表虚拟列表选择列表最前的配置刷分性能分状态 2 指定车型；没有候选则报错，不 OCR" : "按虚拟表规划下一步：选择、滚动、OCR 或默认第一格");
             OcrSnapshot last = null;
             for (int i = 0; i < config.MaxFindNewScrolls; i++)
             {

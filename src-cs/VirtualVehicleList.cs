@@ -21,9 +21,10 @@ namespace FH6SkillPointOcr
     internal sealed partial class VirtualVehicleList
     {
         private readonly int rows;
-        private readonly int drivePerformanceScore;
         private readonly string editLogPath;
         private readonly string snapshotPath;
+        private readonly int skillVehiclePerformanceScore;
+        private readonly int driveVehiclePerformanceScore;
         private readonly Dictionary<CellKey, VirtualVehicleCell> cells = new Dictionary<CellKey, VirtualVehicleCell>();
         private bool hasResumeOffset;
         private const int SnapshotSemanticRevision = 2;
@@ -36,16 +37,23 @@ namespace FH6SkillPointOcr
         public int LastSuggestedSkip { get; private set; }
 
         public VirtualVehicleList(int rows, string editLogPath, string snapshotPath, VirtualListLoadMode loadMode)
-            : this(rows, editLogPath, snapshotPath, loadMode, FH6AutomationConstants.Flow.DrivePerformanceScore)
+            : this(
+                rows,
+                editLogPath,
+                snapshotPath,
+                loadMode,
+                ParseDefaultPerformanceScore(FH6AutomationConstants.Text.DeleteMarker, 600),
+                ParseDefaultPerformanceScore(FH6AutomationConstants.Text.DriveMarker, FH6AutomationConstants.Flow.DrivePerformanceScore))
         {
         }
 
-        public VirtualVehicleList(int rows, string editLogPath, string snapshotPath, VirtualListLoadMode loadMode, int drivePerformanceScore)
+        public VirtualVehicleList(int rows, string editLogPath, string snapshotPath, VirtualListLoadMode loadMode, int skillVehiclePerformanceScore, int driveVehiclePerformanceScore)
         {
             this.rows = rows;
-            this.drivePerformanceScore = drivePerformanceScore;
             this.editLogPath = editLogPath;
             this.snapshotPath = snapshotPath;
+            this.skillVehiclePerformanceScore = NormalizePerformanceScore(skillVehiclePerformanceScore, 600);
+            this.driveVehiclePerformanceScore = NormalizePerformanceScore(driveVehiclePerformanceScore, FH6AutomationConstants.Flow.DrivePerformanceScore);
             EnsureParentDirectory(snapshotPath);
             if (!string.IsNullOrEmpty(editLogPath))
             {
@@ -745,8 +753,8 @@ namespace FH6SkillPointOcr
             next.IsManufacturer = true;
             next.IsTarget = true;
             next.NewState = FH6AutomationConstants.VehicleState.DeletableName;
-            next.PerformanceScore = 600;
-            next.PerformanceClass = DefaultPerformanceClassForScore(600);
+            next.PerformanceScore = skillVehiclePerformanceScore;
+            next.PerformanceClass = DefaultPerformanceClassForScore(skillVehiclePerformanceScore);
             next.LastSeenOffset = CurrentOffset;
             next.SeenCount = cells.TryGetValue(global, out old) ? old.SeenCount + 1 : 1;
             SetCellWithLog(global, next, "PROCESSED", string.Format(CultureInfo.InvariantCulture, "local_row={0} local_col={1}", localCell.Row, localCell.Col));
@@ -811,7 +819,7 @@ namespace FH6SkillPointOcr
             if (count <= 0) return;
 
             int insertOrder = PurchasedVehicleInsertOrderIndex();
-            InsertCellsAtOrderIndex(insertOrder, count, FH6AutomationConstants.VehicleState.ValidNewName, 600, "purchased_valid_new");
+            InsertCellsAtOrderIndex(insertOrder, count, FH6AutomationConstants.VehicleState.ValidNewName, skillVehiclePerformanceScore, "purchased_valid_new");
             Log(string.Format(
                 CultureInfo.InvariantCulture,
                 "PURCHASE_APPEND count={0} insert_order={1}",
@@ -1177,7 +1185,7 @@ namespace FH6SkillPointOcr
             if (cell == null) return false;
             if (!cell.IsTarget) return false;
             return StateCode(cell) == FH6AutomationConstants.VehicleState.Target &&
-                cell.PerformanceScore == drivePerformanceScore;
+                cell.PerformanceScore == driveVehiclePerformanceScore;
         }
 
         private bool ShouldIgnoreKnownColumnCell(int row, int col)
@@ -1265,11 +1273,11 @@ namespace FH6SkillPointOcr
                 .FirstOrDefault();
             if (lastNewOrDelete != null) return OrderIndex(lastNewOrDelete.Row, lastNewOrDelete.Col) + 1;
 
-            VirtualVehicleCell lastAtOrAbove600 = targetCells
-                .Where(c => c.PerformanceScore >= 600)
+            VirtualVehicleCell lastAtOrAboveSkillScore = targetCells
+                .Where(c => c.PerformanceScore >= skillVehiclePerformanceScore)
                 .OrderByDescending(c => OrderIndex(c.Row, c.Col))
                 .FirstOrDefault();
-            if (lastAtOrAbove600 != null) return OrderIndex(lastAtOrAbove600.Row, lastAtOrAbove600.Col) + 1;
+            if (lastAtOrAboveSkillScore != null) return OrderIndex(lastAtOrAboveSkillScore.Row, lastAtOrAboveSkillScore.Col) + 1;
 
             return OrderIndex(targetCells[0].Row, targetCells[0].Col);
         }
@@ -1392,7 +1400,7 @@ namespace FH6SkillPointOcr
                             cell.IsManufacturer = true;
                             cell.IsTarget = true;
                             cell.NewState = FH6AutomationConstants.VehicleState.DeletableName;
-                            if (cell.PerformanceScore < 0) cell.PerformanceScore = 600;
+                            if (cell.PerformanceScore < 0) cell.PerformanceScore = skillVehiclePerformanceScore;
                             if (string.IsNullOrEmpty(cell.PerformanceClass)) cell.PerformanceClass = DefaultPerformanceClassForScore(cell.PerformanceScore);
                         }
                         else if (state == FH6AutomationConstants.VehicleState.ValidNew)
@@ -1400,7 +1408,7 @@ namespace FH6SkillPointOcr
                             cell.IsManufacturer = true;
                             cell.IsTarget = true;
                             cell.NewState = FH6AutomationConstants.VehicleState.ValidNewName;
-                            if (cell.PerformanceScore < 0) cell.PerformanceScore = 600;
+                            if (cell.PerformanceScore < 0) cell.PerformanceScore = skillVehiclePerformanceScore;
                             if (string.IsNullOrEmpty(cell.PerformanceClass)) cell.PerformanceClass = DefaultPerformanceClassForScore(cell.PerformanceScore);
                         }
                         else if (state == FH6AutomationConstants.VehicleState.Target)
@@ -1414,7 +1422,7 @@ namespace FH6SkillPointOcr
                             cell.IsManufacturer = true;
                             cell.IsTarget = true;
                             cell.NewState = FH6AutomationConstants.VehicleState.None;
-                            if (cell.PerformanceScore < 0) cell.PerformanceScore = 900;
+                            if (cell.PerformanceScore < 0) cell.PerformanceScore = driveVehiclePerformanceScore;
                             if (string.IsNullOrEmpty(cell.PerformanceClass)) cell.PerformanceClass = DefaultPerformanceClassForScore(cell.PerformanceScore);
                         }
                         else if (state == FH6AutomationConstants.VehicleState.Blank)
@@ -1436,7 +1444,7 @@ namespace FH6SkillPointOcr
                         cell.IsManufacturer = true;
                         cell.IsTarget = true;
                         cell.NewState = FH6AutomationConstants.VehicleState.None;
-                        if (cell.PerformanceScore < 0) cell.PerformanceScore = 900;
+                        if (cell.PerformanceScore < 0) cell.PerformanceScore = driveVehiclePerformanceScore;
                         if (string.IsNullOrEmpty(cell.PerformanceClass)) cell.PerformanceClass = DefaultPerformanceClassForScore(cell.PerformanceScore);
                     }
                     SetCellWithLog(new CellKey(cell.Row, cell.Col), cell, "LOAD_EXISTING_CELL", "snapshot");
@@ -1490,7 +1498,7 @@ namespace FH6SkillPointOcr
                 root["edit_count"] = EditCount;
                 root["last_known_empty_run"] = LastKnownEmptyRun;
                 root["last_suggested_skip"] = LastSuggestedSkip;
-                root["state_codes"] = "-1=空格, 0=其他厂商, 1=斯巴鲁的车, 2=指定型号, 3=指定型号&600&全新, 4=指定型号&600&非全新, 5=旧版开蓝图标记(当前不再写入)";
+                root["state_codes"] = "-1=空格, 0=其他厂商, 1=斯巴鲁的车, 2=指定型号, 3=指定型号&技能车性能分&全新, 4=指定型号&技能车性能分&非全新, 5=旧版开蓝图标记(当前不再写入)";
 
                 List<Dictionary<string, object>> items = new List<Dictionary<string, object>>();
                 foreach (VirtualVehicleCell cell in cells.Values.OrderBy(c => c.Col).ThenBy(c => c.Row))
@@ -1542,9 +1550,22 @@ namespace FH6SkillPointOcr
 
         private static string DefaultPerformanceClassForScore(int score)
         {
+            if (score == 834) return "S1";
+            if (score == 900) return "S2";
             if (score >= 801) return "S2";
             if (score == 600) return "B";
             return "";
+        }
+
+        private static int NormalizePerformanceScore(int value, int fallback)
+        {
+            return value > 0 && value < 1000 ? value : fallback;
+        }
+
+        private static int ParseDefaultPerformanceScore(string text, int fallback)
+        {
+            int value;
+            return int.TryParse((text ?? "").Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value) ? value : fallback;
         }
     }
 

@@ -50,7 +50,7 @@ namespace FH6SkillPointOcr
                 }
                 else if (choice == "6")
                 {
-                    config = Update(config, "minute_loop_enter_to_x_wait_ms", "刷技术点 Enter 后等待多久按 X", config.MinuteLoopEnterToXWaitMs, 5000, 120000);
+                    config = UpdateEnterToXWait(config);
                 }
                 else if (choice == "7")
                 {
@@ -69,13 +69,40 @@ namespace FH6SkillPointOcr
         {
             Console.WriteLine(string.Format(
                 CultureInfo.InvariantCulture,
-                "当前：启动 {0}ms；阶段间隔 {1}ms；滚动稳定 {2}ms；UI OCR 稳定 {3}ms；缓存点击补偿 {4}ms；Enter->X {5}ms",
+                "当前：启动 {0}ms；阶段间隔 {1}ms；滚动稳定 {2}ms；UI OCR 稳定 {3}ms；缓存点击补偿 {4}ms；Enter->X {5}ms；蓝图净时间 {6}ms；循环额外 {7}ms",
                 config.StartupDelayMs,
                 config.FullAutoStageGapMs,
                 config.SingleScrollDelayMs,
                 config.UiOcrStableWaitMs,
                 config.UiCacheClickWaitMs,
-                config.MinuteLoopEnterToXWaitMs));
+                config.BlueprintEnterToXWaitMs,
+                config.BlueprintNetTimeMs,
+                config.BlueprintLoopExtraMs));
+        }
+
+        private static Config UpdateEnterToXWait(Config config)
+        {
+            int fixedOtherMs = Math.Max(0, config.TapMs) * 3 + Math.Max(0, config.BlueprintAfterXWaitMs) + Math.Max(0, config.BlueprintPostEnterWaitMs);
+            Console.Write(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "刷技术点 Enter 后等待多久按 X 当前 {0}ms。输入新毫秒数，直接回车取消：",
+                    config.BlueprintEnterToXWaitMs));
+            string input = (Console.ReadLine() ?? "").Trim();
+            if (input.Length == 0) return config;
+
+            int value;
+            if (!int.TryParse(input, NumberStyles.Integer, CultureInfo.InvariantCulture, out value) || value < 1000)
+            {
+                Console.WriteLine("输入无效，未修改。");
+                return config;
+            }
+
+            int loopExtraMs = Math.Max(0, value + fixedOtherMs - config.BlueprintNetTimeMs);
+            WriteInt(config.SourcePath, "blueprint_loop_extra_ms", loopExtraMs);
+            WriteInt(config.SourcePath, "minute_loop_enter_to_x_wait_ms", value);
+            Console.WriteLine("[TIMING] 已保存 blueprint_loop_extra_ms = {0}ms；当前 Enter->X 将约为 {1}ms。", loopExtraMs, value);
+            return Config.Load(config.SourcePath);
         }
 
         private static Config Update(Config config, string key, string label, int current, int min, int max)
@@ -111,6 +138,11 @@ namespace FH6SkillPointOcr
             WriteInt(path, "ui_ocr_stable_wait_ms", FH6AutomationConstants.Timing.UiOcrStableWaitMs);
             WriteInt(path, "ui_cache_click_wait_ms", FH6AutomationConstants.Timing.HalfSecondMs);
             WriteInt(path, "minute_loop_enter_to_x_wait_ms", FH6AutomationConstants.SkillPoints.MinuteLoopEnterToXWaitMs);
+            WriteInt(path, "blueprint_skill_points_per_run", FH6AutomationConstants.SkillPoints.MinuteLoopGain);
+            WriteInt(path, "blueprint_net_time_ms", FH6AutomationConstants.SkillPoints.DefaultBlueprintNetTimeMs);
+            WriteInt(path, "blueprint_loop_extra_ms", FH6AutomationConstants.SkillPoints.MinuteLoopEstimatedFixedMs);
+            WriteInt(path, "blueprint_after_x_wait_ms", FH6AutomationConstants.SkillPoints.MinuteLoopAfterXWaitMs);
+            WriteInt(path, "blueprint_post_enter_wait_ms", FH6AutomationConstants.Timing.TenSecondsMs);
         }
 
         private static void WriteInt(string path, string key, int value)

@@ -113,11 +113,12 @@ namespace FH6AutomationShared
             public const int Max = 999;
             public const int QuickVerifyTarget = 100;
             public const int PerVehicle = 32;
-            public const int MinuteLoopGain = 10;
-            public const int MinuteLoopEnterToXWaitMs = 28000;
+            public const int MinuteLoopGain = 50;
+            public const int DefaultBlueprintNetTimeMs = 101000;
+            public const int MinuteLoopEnterToXWaitMs = 115000;
             public const int MinuteLoopAfterXWaitMs = Timing.OneSecondMs;
-            public const int MinuteLoopEstimatedFixedMs = 11300;
-            public const int MinuteLoopEstimatedLoopMs = MinuteLoopEnterToXWaitMs + MinuteLoopEstimatedFixedMs;
+            public const int MinuteLoopEstimatedFixedMs = 25300;
+            public const int MinuteLoopEstimatedLoopMs = DefaultBlueprintNetTimeMs + MinuteLoopEstimatedFixedMs;
         }
 
         internal static class Credits

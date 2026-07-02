@@ -13,6 +13,8 @@ namespace FH6SkillPointOcr
         private const int Rows = 3;
         private const int VisibleColumns = 4;
         private const int MaxSteps = 2000;
+        private const int DefaultSkillVehicleScore = 600;
+        private const int DefaultDriveVehicleScore = 834;
 
         public static int Main(string[] args)
         {
@@ -165,7 +167,7 @@ namespace FH6SkillPointOcr
                 findings.AddRange(randomizedFindings);
                 summaries.Add(string.Format(
                     CultureInfo.InvariantCulture,
-                    "[SCENARIO] 随机属性推演：定表正确后，点技能/删车/买车/找 900 分开车候选跨轮保持虚拟表一致: {0}",
+                    "[SCENARIO] 随机属性推演：定表正确后，点技能/删车/买车/找配置刷分车候选跨轮保持虚拟表一致: {0}",
                     randomizedFindings.Count == 0 ? "PASS" : "FAIL findings=" + randomizedFindings.Count));
 
                 return findings;
@@ -545,7 +547,7 @@ namespace FH6SkillPointOcr
                 list.Add(ActualVehicle.GenericSubaru("front-noise"));
                 list.Add(ActualVehicle.AnchorBeforeTarget());
                 list.Add(ActualVehicle.TargetWithScore(917));
-                list.Add(ActualVehicle.TargetWithScore(900));
+                list.Add(ActualVehicle.TargetWithScore(DefaultDriveVehicleScore));
                 list.Add(ActualVehicle.Target(FH6AutomationConstants.VehicleState.ValidNew));
                 list.Add(ActualVehicle.Target(FH6AutomationConstants.VehicleState.Target));
                 list.Add(ActualVehicle.Target(FH6AutomationConstants.VehicleState.ValidNew));
@@ -643,7 +645,7 @@ namespace FH6SkillPointOcr
                 list.Add(ActualVehicle.AnchorBeforeTarget());
 
                 int targetCount = random.Next(0, 24);
-                bool hasDrive900Candidate = false;
+                bool hasDriveCandidate = false;
                 bool hasValidNew = false;
                 for (int i = 0; i < targetCount; i++)
                 {
@@ -666,7 +668,7 @@ namespace FH6SkillPointOcr
                     {
                         int score = 650 + random.Next(0, 300);
                         list.Add(ActualVehicle.TargetWithScore(score));
-                        if (score == 900) hasDrive900Candidate = true;
+                        if (score == DefaultDriveVehicleScore) hasDriveCandidate = true;
                         continue;
                     }
                     list.Add(ActualVehicle.Target(state));
@@ -677,9 +679,9 @@ namespace FH6SkillPointOcr
                     list.Add(ActualVehicle.Target(FH6AutomationConstants.VehicleState.ValidNew));
                     hasValidNew = true;
                 }
-                if (!hasDrive900Candidate)
+                if (!hasDriveCandidate)
                 {
-                    list.Add(ActualVehicle.TargetWithScore(900));
+                    list.Add(ActualVehicle.TargetWithScore(DefaultDriveVehicleScore));
                 }
                 if (!hasValidNew && seed % 5 == 0)
                 {
@@ -1036,22 +1038,22 @@ namespace FH6SkillPointOcr
                     if (decision.Kind == ActionKind.UseDefault)
                     {
                         CellKey unusedTarget;
-                        if (actual.TryGetFirstDrive900Candidate(rows, out unusedTarget))
+                        if (actual.TryGetFirstDriveCandidate(rows, out unusedTarget))
                         {
                             findings.Add(Finding(
                                 "bug",
-                                scenario.Name + "：找开蓝图车使用默认车辆时，实际列表仍有 900 分状态 2 候选",
+                                scenario.Name + "：找开蓝图车使用默认车辆时，实际列表仍有配置刷分性能分状态 2 候选",
                                 "round=" + round + "\r\nactual=" + actual.DebugString() + "\r\n" + TraceTail()));
                         }
                         return;
                     }
 
                     CellKey expectedTarget;
-                    if (!actual.TryGetFirstDrive900Candidate(rows, out expectedTarget))
+                    if (!actual.TryGetFirstDriveCandidate(rows, out expectedTarget))
                     {
                         findings.Add(Finding(
                             "error",
-                            scenario.Name + "：找开蓝图车阶段生成了目标，但实际列表没有 900 分状态 2 候选",
+                            scenario.Name + "：找开蓝图车阶段生成了目标，但实际列表没有配置刷分性能分状态 2 候选",
                             "round=" + round + ", target=" + FormatCell(decision.Target) + "\r\n" + TraceTail()));
                         return;
                     }
@@ -1059,7 +1061,7 @@ namespace FH6SkillPointOcr
                     {
                         findings.Add(Finding(
                             "error",
-                            scenario.Name + "：找开蓝图车阶段没有选择列表最前的 900 分状态 2 候选",
+                            scenario.Name + "：找开蓝图车阶段没有选择列表最前、符合配置刷分性能分的状态 2 候选",
                             "round=" + round + ", target=" + FormatCell(decision.Target) + ", expected=" + FormatCell(expectedTarget) + "\r\nactual=" + actual.DebugString() + "\r\n" + TraceTail()));
                         return;
                     }
@@ -1153,7 +1155,7 @@ namespace FH6SkillPointOcr
                 CellKey target;
                 if (vehicleList.TryGetDriveVehicleGlobalTarget(out target))
                 {
-                    return Decision.Select(target, "虚拟表内已有 900 分状态 2 开车候选，按列表顺序生成键盘路径");
+                    return Decision.Select(target, "虚拟表内已有配置刷分性能分状态 2 开车候选，按列表顺序生成键盘路径");
                 }
 
                 if (subaruBoundaryReached)
@@ -1174,10 +1176,10 @@ namespace FH6SkillPointOcr
                 int skip;
                 if (vehicleList.TryGetKnownNonDriveToUnknownSkip(visibleColumns, out skip))
                 {
-                    return Decision.Scroll(skip, "跳过已知非 900 分状态 2 候选区间");
+                    return Decision.Scroll(skip, "跳过已知非配置刷分性能分状态 2 候选区间");
                 }
 
-                return Decision.Scroll(1, "当前可见范围已观察但没有 900 分状态 2 候选");
+                return Decision.Scroll(1, "当前可见范围已观察但没有配置刷分性能分状态 2 候选");
             }
 
             private void ApplyFakeOcr(bool skipSelectedCell)
@@ -1353,7 +1355,7 @@ namespace FH6SkillPointOcr
                 return vehicles.Any(v => v.State == state);
             }
 
-            public bool TryGetFirstDrive900Candidate(int rows, out CellKey target)
+            public bool TryGetFirstDriveCandidate(int rows, out CellKey target)
             {
                 int bestIndex = -1;
                 for (int i = 0; i < vehicles.Count; i++)
@@ -1361,7 +1363,7 @@ namespace FH6SkillPointOcr
                     ActualVehicle vehicle = vehicles[i];
                     if (vehicle.Group != ActualVehicle.TargetGroup) continue;
                     if (vehicle.State != FH6AutomationConstants.VehicleState.Target) continue;
-                    if (vehicle.PerformanceScore != 900) continue;
+                    if (vehicle.PerformanceScore != DefaultDriveVehicleScore) continue;
 
                     bestIndex = i;
                     break;
@@ -1421,11 +1423,11 @@ namespace FH6SkillPointOcr
                     .Max();
                 if (lastNewOrDelete >= 0) return lastNewOrDelete + 1;
 
-                int lastAtOrAbove600 = targetIndexes
-                    .Where(i => vehicles[i].PerformanceScore >= 600)
+                int lastAtOrAboveSkillScore = targetIndexes
+                    .Where(i => vehicles[i].PerformanceScore >= DefaultSkillVehicleScore)
                     .DefaultIfEmpty(-1)
                     .Max();
-                if (lastAtOrAbove600 >= 0) return lastAtOrAbove600 + 1;
+                if (lastAtOrAboveSkillScore >= 0) return lastAtOrAboveSkillScore + 1;
 
                 return targetIndexes[0];
             }

@@ -32,6 +32,13 @@ namespace FH6SkillPointOcr
         public double CalibrationClientTop;
         public double CalibrationClientWidth;
         public double CalibrationClientHeight;
+        public int SkillVehiclePerformanceScore;
+        public int DriveVehiclePerformanceScore;
+        public int BlueprintSkillPointsPerRun;
+        public int BlueprintNetTimeMs;
+        public int BlueprintLoopExtraMs;
+        public int BlueprintAfterXWaitMs;
+        public int BlueprintPostEnterWaitMs;
 
         public static UserSettings LoadOrCreate(Config config)
         {
@@ -41,6 +48,7 @@ namespace FH6SkillPointOcr
                 UserSettings settings = Load(path, config);
                 Apply(config, settings);
                 Console.WriteLine("[SETTINGS] 已读取 " + path);
+                PrintBlueprintSettings(config);
                 Console.WriteLine("[SETTINGS] 我的车辆页面完整可见行数：" + settings.VisibleRows);
                 Console.WriteLine("[SETTINGS] 我的车辆页面完整可见列数：" + settings.VisibleColumns);
                 Console.WriteLine("[SETTINGS] 左上格子：left={0:0}, top={1:0}, width={2:0}, height={3:0}",
@@ -73,6 +81,7 @@ namespace FH6SkillPointOcr
             string path = Path.Combine(config.BaseDir, "config", "user-settings.json");
             if (File.Exists(path))
             {
+                ApplyExistingEditableSettings(path, config);
                 File.Delete(path);
                 Console.WriteLine("[SETTINGS] 已删除旧设置 " + path);
             }
@@ -103,19 +112,29 @@ namespace FH6SkillPointOcr
             settings.CalibrationClientTop = GetDouble(json, "calibration_client_top", 0);
             settings.CalibrationClientWidth = GetDouble(json, "calibration_client_width", 0);
             settings.CalibrationClientHeight = GetDouble(json, "calibration_client_height", 0);
+            settings.SkillVehiclePerformanceScore = GetPerformanceScore(json, "skill_vehicle_performance_score", config.SkillVehiclePerformanceScore);
+            settings.DriveVehiclePerformanceScore = GetPerformanceScore(json, "drive_vehicle_performance_score", config.DriveVehiclePerformanceScore);
+            settings.BlueprintSkillPointsPerRun = GetPositiveInt(json, "blueprint_skill_points_per_run", config.BlueprintSkillPointsPerRun);
+            settings.BlueprintNetTimeMs = GetPositiveInt(json, "blueprint_net_time_ms", config.BlueprintNetTimeMs);
+            settings.BlueprintLoopExtraMs = GetNonNegativeInt(json, "blueprint_loop_extra_ms", config.BlueprintLoopExtraMs);
+            settings.BlueprintAfterXWaitMs = GetNonNegativeInt(json, "blueprint_after_x_wait_ms", config.BlueprintAfterXWaitMs);
+            settings.BlueprintPostEnterWaitMs = GetNonNegativeInt(json, "blueprint_post_enter_wait_ms", config.BlueprintPostEnterWaitMs);
             if (!settings.DpiAwareCoordinates)
             {
                 Console.WriteLine("[SETTINGS] 旧设置不是 DPI aware 坐标，截图会偏移，需要重新框选。");
+                ApplyExistingEditableSettings(path, config);
                 return CreateFromConsole(path, config);
             }
             if (!string.Equals(settings.CalibrationMode, "full_grid_v1", StringComparison.OrdinalIgnoreCase))
             {
                 Console.WriteLine("[SETTINGS] 旧设置只框选单个格子，需要改为框选完整可见格子区域。");
+                ApplyExistingEditableSettings(path, config);
                 return CreateFromConsole(path, config);
             }
             if (settings.VisibleRows <= 0 || settings.VisibleColumns <= 0 || settings.GridCellWidth <= 0 || settings.GridCellHeight <= 0)
             {
                 Console.WriteLine("[SETTINGS] user-settings.json 缺少可见行列或格子尺寸，需要重新设置。");
+                ApplyExistingEditableSettings(path, config);
                 return CreateFromConsole(path, config);
             }
             return settings;
@@ -123,7 +142,18 @@ namespace FH6SkillPointOcr
 
         private static UserSettings CreateFromConsole(string path, Config config)
         {
-            Console.WriteLine("首次运行需要保存一个本机显示设置。");
+            Console.WriteLine("首次运行或重设设置需要保存本机显示设置。");
+            Console.WriteLine("先设置最重要的刷图参数。默认推荐蓝图码 123675780，约 101 秒 50 技术点；蓝图失效时请到视频评论区或其它来源找可用蓝图并实测一次。");
+            Console.WriteLine("当前默认蓝图需要开启自动转向、手动挡、牵引力控制系统和稳定控制系统；如果使用其它蓝图，请按分享者提供的设置调整。");
+            Console.WriteLine("运行前请在游戏设置的“抬头显示”里关闭“技术动画”。");
+
+            int blueprintGain = ReadPositiveInt("请输入每次跑图获得的技术点，直接回车默认 " + config.BlueprintSkillPointsPerRun + "：", config.BlueprintSkillPointsPerRun);
+            int blueprintNetTimeMs = ReadPositiveMilliseconds("请输入自己跑一次后结算显示的蓝图净时间（秒，可输入小数），直接回车默认 " + FormatMilliseconds(config.BlueprintNetTimeMs) + "：", config.BlueprintNetTimeMs);
+            int driveScore = ReadPerformanceScore("请输入刷分开蓝图车辆性能分，直接回车默认 " + config.DriveVehiclePerformanceScore + "：", config.DriveVehiclePerformanceScore);
+            int skillScore = ReadPerformanceScore("请输入点技能/删车识别用车辆性能分，直接回车默认 " + config.SkillVehiclePerformanceScore + "：", config.SkillVehiclePerformanceScore);
+            int loopExtraMs = Math.Max(0, config.BlueprintLoopExtraMs);
+            Console.WriteLine("[SETTINGS] 完整刷图循环时间会按“净时间 + {0}”自动计算。", FormatMilliseconds(loopExtraMs));
+
             Console.WriteLine("请进入“我的车辆”页面，数一下屏幕里能看到几行、几列完整车辆格子。");
 
             int rows = ReadPositiveInt("请输入完整可见行数，直接回车默认 3：", 3);
@@ -162,6 +192,13 @@ namespace FH6SkillPointOcr
             settings.GridCellHeight = gridRect.Height / rows;
             settings.DpiAwareCoordinates = true;
             settings.CalibrationMode = "full_grid_v1";
+            settings.SkillVehiclePerformanceScore = skillScore;
+            settings.DriveVehiclePerformanceScore = driveScore;
+            settings.BlueprintSkillPointsPerRun = blueprintGain;
+            settings.BlueprintNetTimeMs = blueprintNetTimeMs;
+            settings.BlueprintLoopExtraMs = loopExtraMs;
+            settings.BlueprintAfterXWaitMs = config.BlueprintAfterXWaitMs;
+            settings.BlueprintPostEnterWaitMs = config.BlueprintPostEnterWaitMs;
 
             Point center = new Point(
                 (int)Math.Round(gridRect.Left + gridRect.Width / 2),
@@ -192,7 +229,9 @@ namespace FH6SkillPointOcr
             }
 
             Save(path, settings);
+            Apply(config, settings);
             Console.WriteLine("[SETTINGS] 已保存 " + path);
+            PrintBlueprintSettings(config);
             Console.WriteLine("[SETTINGS] 整体区域：left={0:0}, top={1:0}, width={2:0}, height={3:0}", gridRect.Left, gridRect.Top, gridRect.Width, gridRect.Height);
             Console.WriteLine("[SETTINGS] 单格尺寸：width={0:0}, height={1:0}", settings.GridCellWidth, settings.GridCellHeight);
             WriteCalibrationDiagnostic(config, settings);
@@ -305,6 +344,32 @@ namespace FH6SkillPointOcr
             return columns;
         }
 
+        private static int ReadPerformanceScore(string prompt, int defaultValue)
+        {
+            while (true)
+            {
+                int value = ReadPositiveInt(prompt, defaultValue);
+                if (value > 0 && value < 1000) return value;
+                Console.WriteLine("输入无效，请输入 1 到 999 之间的性能分。");
+            }
+        }
+
+        private static int ReadPositiveMilliseconds(string prompt, int defaultValue)
+        {
+            while (true)
+            {
+                Console.Write(prompt);
+                string input = (Console.ReadLine() ?? "").Trim();
+                if (input.Length == 0 && defaultValue > 0) return defaultValue;
+                double seconds;
+                if (double.TryParse(input, NumberStyles.Float, CultureInfo.InvariantCulture, out seconds) && seconds > 0)
+                {
+                    return Math.Max(1, (int)Math.Round(seconds * 1000.0));
+                }
+                Console.WriteLine("输入无效，请输入大于 0 的秒数，例如 101 或 101.5。");
+            }
+        }
+
         private static void Save(string path, UserSettings settings)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path));
@@ -322,6 +387,13 @@ namespace FH6SkillPointOcr
             json["calibration_client_top"] = Math.Round(settings.CalibrationClientTop, 2);
             json["calibration_client_width"] = Math.Round(settings.CalibrationClientWidth, 2);
             json["calibration_client_height"] = Math.Round(settings.CalibrationClientHeight, 2);
+            json["blueprint_skill_points_per_run"] = settings.BlueprintSkillPointsPerRun;
+            json["blueprint_net_time_ms"] = settings.BlueprintNetTimeMs;
+            json["blueprint_loop_extra_ms"] = settings.BlueprintLoopExtraMs;
+            json["blueprint_after_x_wait_ms"] = settings.BlueprintAfterXWaitMs;
+            json["blueprint_post_enter_wait_ms"] = settings.BlueprintPostEnterWaitMs;
+            json["drive_vehicle_performance_score"] = settings.DriveVehiclePerformanceScore;
+            json["skill_vehicle_performance_score"] = settings.SkillVehiclePerformanceScore;
             string body = new JavaScriptSerializer().Serialize(json);
             File.WriteAllText(path, PrettyJson(body), Encoding.UTF8);
         }
@@ -339,12 +411,77 @@ namespace FH6SkillPointOcr
             config.CalibrationClientTop = settings.CalibrationClientTop;
             config.CalibrationClientWidth = settings.CalibrationClientWidth;
             config.CalibrationClientHeight = settings.CalibrationClientHeight;
+            if (settings.SkillVehiclePerformanceScore > 0)
+            {
+                config.SkillVehiclePerformanceScore = settings.SkillVehiclePerformanceScore;
+                config.DeleteMarkerText = settings.SkillVehiclePerformanceScore.ToString(CultureInfo.InvariantCulture);
+            }
+            if (settings.DriveVehiclePerformanceScore > 0)
+            {
+                config.DriveVehiclePerformanceScore = settings.DriveVehiclePerformanceScore;
+                config.DrivePerformanceScore = settings.DriveVehiclePerformanceScore;
+                config.DriveMarkerText = settings.DriveVehiclePerformanceScore.ToString(CultureInfo.InvariantCulture);
+            }
+            if (settings.BlueprintSkillPointsPerRun > 0) config.BlueprintSkillPointsPerRun = settings.BlueprintSkillPointsPerRun;
+            if (settings.BlueprintNetTimeMs > 0) config.BlueprintNetTimeMs = settings.BlueprintNetTimeMs;
+            if (settings.BlueprintLoopExtraMs >= 0) config.BlueprintLoopExtraMs = settings.BlueprintLoopExtraMs;
+            if (settings.BlueprintAfterXWaitMs >= 0) config.BlueprintAfterXWaitMs = settings.BlueprintAfterXWaitMs;
+            if (settings.BlueprintPostEnterWaitMs >= 0) config.BlueprintPostEnterWaitMs = settings.BlueprintPostEnterWaitMs;
+            config.MinuteLoopEnterToXWaitMs = config.BlueprintEnterToXWaitMs;
+        }
+
+        private static void ApplyExistingEditableSettings(string path, Config config)
+        {
+            try
+            {
+                Dictionary<string, object> json = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(File.ReadAllText(path, Encoding.UTF8));
+                config.SkillVehiclePerformanceScore = GetPerformanceScore(json, "skill_vehicle_performance_score", config.SkillVehiclePerformanceScore);
+                config.DeleteMarkerText = config.SkillVehiclePerformanceScore.ToString(CultureInfo.InvariantCulture);
+                config.DriveVehiclePerformanceScore = GetPerformanceScore(json, "drive_vehicle_performance_score", config.DriveVehiclePerformanceScore);
+                config.DrivePerformanceScore = config.DriveVehiclePerformanceScore;
+                config.DriveMarkerText = config.DriveVehiclePerformanceScore.ToString(CultureInfo.InvariantCulture);
+                config.BlueprintSkillPointsPerRun = GetPositiveInt(json, "blueprint_skill_points_per_run", config.BlueprintSkillPointsPerRun);
+                config.BlueprintNetTimeMs = GetPositiveInt(json, "blueprint_net_time_ms", config.BlueprintNetTimeMs);
+                config.BlueprintLoopExtraMs = GetNonNegativeInt(json, "blueprint_loop_extra_ms", config.BlueprintLoopExtraMs);
+                config.BlueprintAfterXWaitMs = GetNonNegativeInt(json, "blueprint_after_x_wait_ms", config.BlueprintAfterXWaitMs);
+                config.BlueprintPostEnterWaitMs = GetNonNegativeInt(json, "blueprint_post_enter_wait_ms", config.BlueprintPostEnterWaitMs);
+                config.MinuteLoopEnterToXWaitMs = config.BlueprintEnterToXWaitMs;
+            }
+            catch
+            {
+            }
+        }
+
+        private static void PrintBlueprintSettings(Config config)
+        {
+            Console.WriteLine("[SETTINGS] 每次跑图技术点：+" + config.BlueprintSkillPointsPerRun);
+            Console.WriteLine("[SETTINGS] 蓝图净时间：" + FormatMilliseconds(config.BlueprintNetTimeMs) + "；完整循环估算：" + FormatMilliseconds(config.BlueprintEstimatedLoopMs));
+            Console.WriteLine("[SETTINGS] Enter -> X 默认等待：" + FormatMilliseconds(config.BlueprintEnterToXWaitMs));
+            Console.WriteLine("[SETTINGS] 刷分车性能分：" + config.DriveVehiclePerformanceScore + "；点技能/删车性能分：" + config.SkillVehiclePerformanceScore);
         }
 
         private static int GetInt(Dictionary<string, object> json, string key, int fallback)
         {
             object value;
             return json.TryGetValue(key, out value) && value != null ? Convert.ToInt32(value, CultureInfo.InvariantCulture) : fallback;
+        }
+
+        private static int GetPositiveInt(Dictionary<string, object> json, string key, int fallback)
+        {
+            int value = GetInt(json, key, fallback);
+            return value > 0 ? value : fallback;
+        }
+
+        private static int GetNonNegativeInt(Dictionary<string, object> json, string key, int fallback)
+        {
+            int value = GetInt(json, key, fallback);
+            return value >= 0 ? value : fallback;
+        }
+
+        private static int GetPerformanceScore(Dictionary<string, object> json, string key, int fallback)
+        {
+            int value = GetInt(json, key, fallback);
+            return value > 0 && value < 1000 ? value : fallback;
         }
 
         private static double GetDouble(Dictionary<string, object> json, string key, double fallback)
@@ -363,6 +500,11 @@ namespace FH6SkillPointOcr
         {
             object value;
             return json.TryGetValue(key, out value) && value != null ? Convert.ToString(value, CultureInfo.InvariantCulture) : fallback;
+        }
+
+        private static string FormatMilliseconds(int ms)
+        {
+            return (Math.Max(0, ms) / 1000.0).ToString("0.###", CultureInfo.InvariantCulture) + " 秒";
         }
 
         private static string PrettyJson(string compact)

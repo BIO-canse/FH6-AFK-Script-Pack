@@ -54,6 +54,8 @@ namespace FH6SkillPointOcr
         public string NewBadgeText;
         public string DeleteMarkerText;
         public string DriveMarkerText;
+        public int SkillVehiclePerformanceScore;
+        public int DriveVehiclePerformanceScore;
         public int DrivePerformanceScore;
         public string CreativeCenterText;
         public string LatestHotText;
@@ -66,6 +68,11 @@ namespace FH6SkillPointOcr
         public int MaxFindVehicleScrolls;
         public int MaxFindNewScrolls;
         public int SkillPointsPerVehicle;
+        public int BlueprintSkillPointsPerRun;
+        public int BlueprintNetTimeMs;
+        public int BlueprintLoopExtraMs;
+        public int BlueprintAfterXWaitMs;
+        public int BlueprintPostEnterWaitMs;
         public int GridRows;
         public int VisibleColumns;
         public double GridCellLeft;
@@ -132,9 +139,15 @@ namespace FH6SkillPointOcr
             cfg.MyHorizonText = GetString(json, "my_horizon_text", FH6AutomationConstants.Text.MyHorizon);
             cfg.TargetVehicleText = GetString(json, "target_vehicle_text", FH6AutomationConstants.Text.TargetVehicle);
             cfg.NewBadgeText = GetString(json, "new_badge_text", FH6AutomationConstants.Text.NewBadge);
-            cfg.DeleteMarkerText = GetString(json, "delete_marker_text", FH6AutomationConstants.Text.DeleteMarker);
-            cfg.DriveMarkerText = GetString(json, "drive_marker_text", FH6AutomationConstants.Text.DriveMarker);
-            cfg.DrivePerformanceScore = Clamp(GetInt(json, "drive_performance_score", ParseIntText(cfg.DriveMarkerText, FH6AutomationConstants.Flow.DrivePerformanceScore)), 100, 999);
+            cfg.SkillVehiclePerformanceScore = NormalizePerformanceScore(GetInt(json, "skill_vehicle_performance_score", ParseInt(FH6AutomationConstants.Text.DeleteMarker, 600)), 600);
+            cfg.DriveVehiclePerformanceScore = NormalizePerformanceScore(GetInt(json, "drive_vehicle_performance_score", ParseInt(FH6AutomationConstants.Text.DriveMarker, FH6AutomationConstants.Flow.DrivePerformanceScore)), FH6AutomationConstants.Flow.DrivePerformanceScore);
+            cfg.DeleteMarkerText = GetString(json, "delete_marker_text", cfg.SkillVehiclePerformanceScore.ToString(CultureInfo.InvariantCulture));
+            cfg.DriveMarkerText = GetString(json, "drive_marker_text", cfg.DriveVehiclePerformanceScore.ToString(CultureInfo.InvariantCulture));
+            cfg.SkillVehiclePerformanceScore = NormalizePerformanceScore(GetInt(json, "skill_vehicle_performance_score", ParseInt(cfg.DeleteMarkerText, cfg.SkillVehiclePerformanceScore)), cfg.SkillVehiclePerformanceScore);
+            cfg.DriveVehiclePerformanceScore = NormalizePerformanceScore(GetInt(json, "drive_vehicle_performance_score", GetInt(json, "drive_performance_score", ParseInt(cfg.DriveMarkerText, cfg.DriveVehiclePerformanceScore))), cfg.DriveVehiclePerformanceScore);
+            cfg.DeleteMarkerText = cfg.SkillVehiclePerformanceScore.ToString(CultureInfo.InvariantCulture);
+            cfg.DriveMarkerText = cfg.DriveVehiclePerformanceScore.ToString(CultureInfo.InvariantCulture);
+            cfg.DrivePerformanceScore = cfg.DriveVehiclePerformanceScore;
             cfg.CreativeCenterText = GetString(json, "creative_center_text", FH6AutomationConstants.Text.CreativeCenter);
             cfg.LatestHotText = GetString(json, "latest_hot_text", FH6AutomationConstants.Text.LatestHot);
             cfg.MyFavoritesText = GetString(json, "my_favorites_text", FH6AutomationConstants.Text.MyFavorites);
@@ -146,6 +159,12 @@ namespace FH6SkillPointOcr
             cfg.MaxFindVehicleScrolls = GetInt(json, "max_find_vehicle_scrolls", FH6AutomationConstants.Flow.MaxFindVehicleScrolls);
             cfg.MaxFindNewScrolls = GetInt(json, "max_find_new_scrolls", FH6AutomationConstants.Flow.MaxFindNewScrolls);
             cfg.SkillPointsPerVehicle = GetInt(json, "skill_points_per_vehicle", FH6AutomationConstants.SkillPoints.PerVehicle);
+            cfg.BlueprintSkillPointsPerRun = GetPositiveInt(json, "blueprint_skill_points_per_run", FH6AutomationConstants.SkillPoints.MinuteLoopGain);
+            cfg.BlueprintNetTimeMs = GetPositiveInt(json, "blueprint_net_time_ms", FH6AutomationConstants.SkillPoints.DefaultBlueprintNetTimeMs);
+            cfg.BlueprintLoopExtraMs = GetNonNegativeInt(json, "blueprint_loop_extra_ms", Math.Max(0, FH6AutomationConstants.SkillPoints.MinuteLoopEstimatedLoopMs - FH6AutomationConstants.SkillPoints.DefaultBlueprintNetTimeMs));
+            cfg.BlueprintAfterXWaitMs = GetNonNegativeInt(json, "blueprint_after_x_wait_ms", FH6AutomationConstants.SkillPoints.MinuteLoopAfterXWaitMs);
+            cfg.BlueprintPostEnterWaitMs = GetNonNegativeInt(json, "blueprint_post_enter_wait_ms", FH6AutomationConstants.Timing.TenSecondsMs);
+            cfg.MinuteLoopEnterToXWaitMs = cfg.BlueprintEnterToXWaitMs;
             cfg.GridRows = GetInt(json, "grid_rows", FH6AutomationConstants.Flow.DefaultGridRows);
             cfg.VisibleColumns = GetInt(json, "visible_columns", 0);
             cfg.GridCellLeft = GetDouble(json, "grid_cell_left", 0);
@@ -177,7 +196,21 @@ namespace FH6SkillPointOcr
 
         public int MinuteLoopEstimatedLoopMs
         {
-            get { return MinuteLoopEnterToXWaitMs + FH6AutomationConstants.SkillPoints.MinuteLoopEstimatedFixedMs; }
+            get { return BlueprintEstimatedLoopMs; }
+        }
+
+        public int BlueprintEstimatedLoopMs
+        {
+            get { return Math.Max(1000, BlueprintNetTimeMs + BlueprintLoopExtraMs); }
+        }
+
+        public int BlueprintEnterToXWaitMs
+        {
+            get
+            {
+                int fixedOtherMs = Math.Max(0, TapMs) * 3 + Math.Max(0, BlueprintAfterXWaitMs) + Math.Max(0, BlueprintPostEnterWaitMs);
+                return Math.Max(1000, BlueprintEstimatedLoopMs - fixedOtherMs);
+            }
         }
 
         private static string ResolveConfigPath(string path)
@@ -234,10 +267,27 @@ namespace FH6SkillPointOcr
             return value;
         }
 
-        private static int ParseIntText(string text, int fallback)
+        private static int GetPositiveInt(Dictionary<string, object> json, string key, int fallback)
+        {
+            int value = GetInt(json, key, fallback);
+            return value > 0 ? value : fallback;
+        }
+
+        private static int GetNonNegativeInt(Dictionary<string, object> json, string key, int fallback)
+        {
+            int value = GetInt(json, key, fallback);
+            return value >= 0 ? value : fallback;
+        }
+
+        private static int ParseInt(string text, int fallback)
         {
             int value;
-            return int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value) ? value : fallback;
+            return int.TryParse((text ?? "").Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out value) ? value : fallback;
+        }
+
+        private static int NormalizePerformanceScore(int value, int fallback)
+        {
+            return value > 0 && value < 1000 ? value : fallback;
         }
 
         private static double GetDouble(Dictionary<string, object> json, string key, double fallback)

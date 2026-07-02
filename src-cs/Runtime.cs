@@ -99,7 +99,7 @@ namespace FH6SkillPointOcr
             ocr = new OcrReader(config, stepDebug ? debugScreenshotDir : null);
             string virtualListLog = Path.Combine(debugDir, "virtual-list-edits-" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + ".log");
             string virtualListPath = config.ResolvePath(config.VirtualListPath);
-            vehicleList = new VirtualVehicleList(config.GridRows, virtualListLog, virtualListPath, virtualListLoadMode, config.DrivePerformanceScore);
+            vehicleList = new VirtualVehicleList(config.GridRows, virtualListLog, virtualListPath, virtualListLoadMode, config.SkillVehiclePerformanceScore, config.DriveVehiclePerformanceScore);
             overlay = new OverlayRenderer(config.OverlayEnabled);
             LoadSkillPointCountersFromState();
             PersistSkillPointsState("init");
